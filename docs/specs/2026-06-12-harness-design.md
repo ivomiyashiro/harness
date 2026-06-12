@@ -87,6 +87,14 @@ Working with Claude Code on real projects burns tokens on context that doesn't n
 - FR-34: Per-phase approximate token usage (from Agent tool results) is recorded caveman-style in the state file (`tokens: explore 2k | implement 45k | judge 18k`).
 - FR-35: Subagent failure → orchestrator reports the raw error; no blind retries. Session death/compaction → `/harness:go <feature>` resumes from state file.
 
+### Migration & cleanup (final stage, after dogfood passes)
+
+- FR-36: Uninstall gentle-ai: run `gentle-ai uninstall` (removes managed files: orchestrator protocol, SDD skills, skill registry, `.atl/`), then remove the scoop package. Remove leftover `.atl/` directories from active repos.
+- FR-37: Remove the engram plugin (MCP server + memory protocol). Before removal, export any engram observations worth keeping into the relevant project's `docs/learnings.md` (caveman, one line each).
+- FR-38: Trim global `~/.claude/CLAUDE.md` to a minimal file. Keep: RTK command guide, core rules (verification, response length, no AI attribution in commits), persona (Gentleman: scope, language, tone, behavior). Remove: Engram protocol, Agent Teams orchestrator instructions, SDD workflow + dispatcher + guards, model assignment tables, sub-agent launch protocols, contextual skill-loading mandates — all superseded by the harness plugin's own (short) CLAUDE.md.
+- FR-39: Uninstall the ivos-skills plugin — its workflow skills (brainstorming, writing-plans, TDD, subagent-driven-development, etc.) are superseded by harness phase skills and would create duplicate skill-trigger noise. Before removal, port any stack skills still wanted (e.g. `hono-bun-api`, Flutter skills, `react-best-practices`) to standalone personal skills referenced from project `docs/conventions.md`.
+- FR-40: Cleanup runs ONLY after the dogfood test (build stage 8) passes — ivos-skills' writing-plans/TDD skills and engram are the scaffolding used to build the harness itself. Removing them earlier saws off the branch we sit on.
+
 ## 3. Acceptance Criteria (representative)
 
 - AC-1 (FR-1/35): Given a feature with state `phase: implement, done: 1,2`, when `/harness:go <feature>` runs in a new session, then it dispatches task 3 without re-asking anything answered before. [manual]
@@ -132,7 +140,6 @@ Plugin CLAUDE.md: short — artifact paths, "paths not content" golden rule, cav
 - Cross-project memory (learnings.md is per-project; engram replacement not attempted).
 - CI/CD integration, GitHub automation beyond chained PRs.
 - Support for agents other than Claude Code.
-- Automatic gentle-ai uninstall (manual, when harness is ready).
 
 ## 7. Dependencies
 
@@ -162,3 +169,4 @@ Each stage usable on its own, dogfooding from the start:
 6. Parallelism & epics: worktree handling, `_active.md` registry + overlap check, epic decomposition + chained PRs.
 7. Telemetry & learnings: token logging per phase, learnings.md protocol.
 8. Dogfood test: run the full pipeline on a small sample feature; verify ACs 1-8; tune agent prompts with real token numbers.
+9. Migration & cleanup (FR-36..40): uninstall gentle-ai, remove engram (after exporting learnings), trim global CLAUDE.md to minimal (rtk + rules + persona), uninstall ivos-skills (after porting wanted stack skills). Gate: stage 8 passed.
