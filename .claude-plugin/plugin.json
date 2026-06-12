@@ -1,0 +1,5 @@
+{
+  "name": "harness",
+  "description": "Token-economic multi-agent development pipeline: brainstorm, spec, plan, implement (TDD), judge, manual test, iterate.",
+  "version": "0.1.0"
+}
