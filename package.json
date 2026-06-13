@@ -1,0 +1,25 @@
+{
+  "name": "opencode-harness",
+  "version": "0.1.0",
+  "description": "Token-economic multi-agent development pipeline for opencode.",
+  "type": "module",
+  "main": "./index.js",
+  "exports": "./index.js",
+  "files": [
+    "index.js",
+    "AGENTS.md",
+    "agents/",
+    "commands/",
+    "skills/",
+    "docs/"
+  ],
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "agent",
+    "workflow"
+  ],
+  "peerDependencies": {
+    "@opencode-ai/plugin": "*"
+  }
+}

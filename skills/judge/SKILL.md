@@ -3,12 +3,12 @@ name: judge
 description: "Judge phase — blind dual review of the diff against the spec, synthesis, fixer dispatch. Trigger: harness pipeline reaches judge phase."
 ---
 
-Orchestrator-side. Judges catch SPEC drift — they never see the plan.
+Orchestrator-side. Judges catch SPEC drift, universal code-law drift, and local conventions drift — they never see the plan.
 
 ## Dual review (full mode)
 
 1. Determine the diff range (feature branch base..HEAD).
-2. Launch `judge-a` AND `judge-b` in PARALLEL (one message, two Agent calls), identical inputs: spec path, diff range, `docs/conventions.md` path. Never pass one judge's verdict to the other.
+2. Launch `judge-a` AND `judge-b` in PARALLEL (one message, two Agent calls), identical inputs: spec path, diff range, `docs/conventions.md` path. Judges also have built-in `CORE-*` code laws, so `docs/conventions.md` may be sparse. Never pass one judge's verdict to the other.
 3. Synthesize the two caveman verdicts:
 
 | Outcome | Action |

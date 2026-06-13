@@ -1,75 +1,71 @@
-# Harness Artifact Formats
+# Harness Formats
 
-Single source of truth for every artifact the pipeline reads or writes. Caveman = ultra-compact, no prose, no filler. Specs are the one exception: precision over brevity in ACs.
+## 1. Feature State
 
-## 1. State file — `docs/state/<feature>.md`
+Path: `docs/state/<feature>.md`
 
-Caveman fields, one per line. Written by the orchestrator BEFORE every phase transition.
-
-```
-mode: full
-phase: implement
-spec: docs/specs/dark-mode.md
-plan: docs/plans/dark-mode/
-tasks: done 1,2 / next 3 / total 5
-judges: a 2 findings, b 3 findings, confirmed 2, fixed
-checklist: 3/4 ok, pending AC-6
-tokens: brainstorm 4k | plan 9k | implement 45k | judge 18k
-```
-
-Omit lines that do not apply yet. `phase` values: `triage | brainstorm | spec | plan | visual | implement | judge | manual-test | iterate | done`.
-
-## 2. Spec — `docs/specs/<feature>.md`
-
-Lean prose: problem in ≤ 3 sentences, FRs as bullets, zero filler. ACs in FULL Given/When/Then, each tagged `[unit|integration|e2e|manual]`. Spec approval = test-budget approval.
-
-```
-- AC-2: Given a logged-in user with dark mode on, when they reload, then the theme persists. [integration]
+```text
+feature: <slug>
+mode: hotfix | lite | full | epic
+phase: brainstorm | spec | plan | visual | implement | judge | manual-test | iterate | done
+branch: <branch>
+worktree: <path>
+spec: docs/specs/<feature>.md
+plan: docs/plans/<feature>/plan.md
+tasks: pending 1,2,3 | done 1,2 | blocked <reason>
+tokens: <running notes>
+next: <one-line next action>
 ```
 
-## 3. Plan task file — `docs/plans/<feature>/task-NN.md`
+## 2. Spec
 
-Caveman bullets. `pattern:` points to the codebase exemplar file the task must mirror (chosen at spec phase for novel code).
+Path: `docs/specs/<feature>.md`
 
-```
-goal: theme toggle persists to localStorage
-files: src/theme/store.ts, src/theme/store.test.ts
-tests: AC-2 (integration), toggle unit
-done-when: rtk vitest run green, AC-2 covered
-pattern: src/settings/locale-store.ts
-```
+```text
+feature: <slug>
+summary: <one line>
 
-`plan.md` lists tasks in order + the file globs the plan will touch.
-
-## 4. Caveman subagent report
-
-≤ 3 lines, no code. Success: `task 3: 4 tests green, 2 files, committed abc123`. Failure: `task 3: FAIL — vitest: Cannot find module 'zod'` (raw error, one line).
-
-## 5. Active registry — `docs/state/_active.md` (lives on main)
-
-One line per active feature:
-
-```
-dark-mode | feat/dark-mode | src/theme/**, src/settings/theme*
+FR-1: <functional requirement>
+AC-1 [unit|integration|e2e|manual]: Given <context> When <action> Then <outcome>
 ```
 
-Registered at plan approval, removed at finish. Checked at plan time for glob overlaps.
+## 3. Task
 
-## 6. Learnings — `docs/learnings.md`
+Path: `docs/plans/<feature>/task-NN.md`
 
-One caveman line per project gotcha. Agents read at start; orchestrator appends on surprises.
-
+```text
+goal: <one work-unit goal>
+files: <comma-separated paths>
+tests: <AC ids and test intent>
+done-when: <commands and observable result>
+pattern: <exemplar path to mirror>
 ```
-vitest needs --pool=forks here, workers crash
+
+## 4. Plan
+
+Path: `docs/plans/<feature>/plan.md`
+
+```text
+feature: <slug>
+globs: <file globs touched by the plan>
+tasks:
+1. <one-line goal>
+2. <one-line goal>
+parallel-safe: <task groups or none>
 ```
 
-## 7. Epic state — `docs/state/epic-<name>.md`
+## 5. Active Registry
 
-Sub-spec list + dependency order, no detailed design:
+Path: `docs/state/_active.md`
 
+```text
+<feature>: <mode>, <phase>, <branch>, next <action>
 ```
-name | depends-on | status
-auth-base | - | done
-profile-ui | auth-base | active
-billing | auth-base | pending
+
+## 6. Learnings
+
+Path: `docs/learnings.md`
+
+```text
+<short caveman lesson> - <evidence path or phase>
 ```
