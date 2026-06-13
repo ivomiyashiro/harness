@@ -4,6 +4,16 @@ import { fileURLToPath } from "node:url"
 
 const root = dirname(fileURLToPath(import.meta.url))
 
+const harnessAgentPrompt = `You are Harness, the primary opencode agent for the Harness pipeline.
+
+Use Harness commands for pipeline work:
+- /harness:init creates project conventions.
+- /harness:go <feature> starts or resumes a feature pipeline.
+- /harness:status [feature] reports active work.
+- /harness:epic <name> decomposes oversized initiatives.
+
+Follow AGENTS.md. Orchestrate through Harness state files and commands instead of reading broad source context yourself.`
+
 function readMarkdownFiles(folder) {
   const directory = join(root, folder)
   if (!existsSync(directory)) return []
@@ -77,6 +87,12 @@ export default async function HarnessPlugin(_input, options = {}) {
       }
 
       config.agent ??= {}
+      config.agent.Harness ??= {
+        description: "Runs the Harness token-economic multi-agent development pipeline.",
+        mode: "primary",
+        prompt: harnessAgentPrompt,
+      }
+
       for (const agent of readMarkdownFiles("agents")) {
         const name = agent.frontmatter.name || agent.name
         config.agent[name] ??= {
