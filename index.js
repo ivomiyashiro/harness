@@ -61,11 +61,12 @@ function permissionFromTools(tools) {
   return permission
 }
 
-function modelForAgent(agent, options) {
+function configuredModelForAgent(agent, options) {
   const models = options?.models ?? {}
-  const configured = models[agent.frontmatter.name || agent.name] ?? options?.defaultModel
-  if (configured) return configured
+  return models[agent.frontmatter.name || agent.name] ?? options?.defaultModel
+}
 
+function frontmatterModelForAgent(agent) {
   const frontmatterModel = agent.frontmatter.model
   return frontmatterModel?.includes("/") ? frontmatterModel : undefined
 }
@@ -101,8 +102,13 @@ export default async function HarnessPlugin(_input, options = {}) {
           prompt: agent.body,
           permission: permissionFromTools(agent.frontmatter.tools),
         }
-        const model = modelForAgent(agent, options)
-        if (model && !config.agent[name].model) config.agent[name].model = model
+        const configuredModel = configuredModelForAgent(agent, options)
+        if (configuredModel) {
+          config.agent[name].model = configuredModel
+        } else {
+          const model = frontmatterModelForAgent(agent)
+          if (model && !config.agent[name].model) config.agent[name].model = model
+        }
       }
 
       config.skills ??= {}
