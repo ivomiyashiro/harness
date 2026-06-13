@@ -13,6 +13,9 @@ worktree: <path>
 spec: docs/specs/<feature>.md
 plan: docs/plans/<feature>/plan.md
 tasks: pending 1,2,3 | done 1,2 | blocked <reason>
+globs: <file globs touched by the approved plan, or none>
+judges: not-run | judge-a clean, judge-b clean | confirmed <ids> | fixed <ids>
+checklist: none | <done>/<total> ok, pending <AC ids>
 tokens: <running notes>
 next: <one-line next action>
 ```
@@ -59,7 +62,8 @@ parallel-safe: <task groups or none>
 Path: `docs/state/_active.md`
 
 ```text
-<feature>: <mode>, <phase>, <branch>, next <action>
+feature | mode | phase | branch | globs | next
+dark-mode | full | implement | feat/dark-mode | src/theme/**, src/app/** | task 3/5
 ```
 
 ## 6. Learnings
@@ -68,4 +72,16 @@ Path: `docs/learnings.md`
 
 ```text
 <short caveman lesson> - <evidence path or phase>
+```
+
+## 7. Epic State
+
+Path: `docs/state/epic-<name>.md`
+
+```text
+epic: <name>
+phase: active | done
+subspecs:
+<sub-feature> | depends-on <sub-feature|none> | status pending|active|done | pr <branch-or-url|none>
+next: <one-line next action>
 ```

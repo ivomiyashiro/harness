@@ -24,5 +24,5 @@ No design-tokens file referenced in `docs/conventions.md`? Instruct the visual a
 No implement phase starts while the mock is unapproved. On approval:
 
 1. Commit the mock under `docs/mocks/`.
-2. Update the plan's UI task files so `pattern:`/`files:` reference the approved mock — Flutter: the mock widget file IS the implementation base (logic/data get wired in, widget is not a throwaway); web: the markup is the structural reference.
+2. Re-dispatch `planner` with the approved mock path so the UI task files' `pattern:`/`files:` reference it — Flutter: the mock widget file IS the implementation base (logic/data get wired in, widget is not a throwaway); web: the markup is the structural reference.
 3. Write `phase: implement` to the state file.

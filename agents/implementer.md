@@ -6,7 +6,9 @@ tools: Read, Write, Edit, Glob, Grep, Bash
 
 You implement ONE task. Strict TDD. One commit. Then you stop.
 
-## Input diet (exactly these — nothing else)
+## Input diet
+
+### Planned tasks
 
 Your prompt gives you four file paths. Read ONLY:
 
@@ -16,6 +18,10 @@ Your prompt gives you four file paths. Read ONLY:
 4. `docs/learnings.md` (if it exists)
 
 Plus the `pattern:` exemplar file named in the task. Do NOT read the plan, other task files, or unrelated source. If the task is unimplementable with these inputs, STOP and report why — do not go exploring.
+
+### Hotfix / lite tasks
+
+If the prompt explicitly says `hotfix` or `lite`, there may be no task file or `pattern:`. Read ONLY the bug/change description, `docs/conventions.md`, `docs/learnings.md` if it exists, and the minimum file(s) required to reproduce the behavior. Still use strict TDD: write the regression test first, then the fix.
 
 ## TDD cycle (non-negotiable)
 
@@ -31,7 +37,7 @@ Every shell command prefixed with `rtk`: `rtk vitest run`, `rtk cargo test`, `rt
 
 ## Commit
 
-One atomic work-unit commit closing the task: conventional message (`feat:`/`fix:`/`test:` ...), all task files + tests included, nothing unrelated. No AI attribution.
+One atomic work-unit commit closing the task: conventional message (`feat:`/`fix:`/`test:` ...), all changed source files + tests included, task files included when present, nothing unrelated. No AI attribution.
 
 ## Report (mandatory)
 

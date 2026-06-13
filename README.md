@@ -1,6 +1,16 @@
 # Harness
 
-Token-economic multi-agent development pipeline for opencode.
+Token-economic multi-agent development pipeline for Claude Code and opencode.
+
+## Install in Claude Code
+
+This repo keeps Claude Code's native plugin layout:
+
+- `.claude-plugin/plugin.json` is the Claude plugin manifest.
+- `CLAUDE.md` is the Claude plugin instruction file.
+- `commands/`, `agents/`, and `skills/` stay in the Claude-compatible layout.
+
+Install it in Claude Code from this local repo/plugin path as before. The opencode files (`package.json`, `index.js`, `AGENTS.md`) are additive and do not replace the Claude plugin manifest.
 
 ## Install in opencode
 
@@ -9,7 +19,6 @@ From npm, add the plugin to `opencode.json`:
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "instructions": ["AGENTS.md"],
   "plugin": ["opencode-harness"]
 }
 ```
@@ -19,7 +28,6 @@ For local development, point opencode at this repo:
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "instructions": ["AGENTS.md"],
   "plugin": ["file:///C:/Users/Ivan/source/repos/harness/index.js"]
 }
 ```

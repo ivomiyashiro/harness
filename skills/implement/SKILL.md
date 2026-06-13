@@ -19,7 +19,7 @@ Orchestrator-side. You dispatch; you never write code.
 
 ## Hotfix / lite shortcut
 
-No plan directory. Launch one implementer with: the bug description (or one-line spec from the state file), `docs/conventions.md`, `docs/learnings.md`. Requirement: regression test reproducing the bug first, then fix — full TDD plan not required (only the regression test is mandated).
+No plan directory. Launch one implementer and explicitly label the prompt `hotfix` or `lite`. Include: the bug description (or one-line spec from the state file), `docs/conventions.md`, `docs/learnings.md`. Requirement: regression test reproducing the bug first, then fix — full TDD plan not required (only the regression test is mandated).
 
 ## Rules
 

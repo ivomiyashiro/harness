@@ -93,6 +93,10 @@ export default async function HarnessPlugin(_input, options = {}) {
       config.skills.paths ??= []
       const skillsPath = join(root, "skills")
       if (!config.skills.paths.includes(skillsPath)) config.skills.paths.push(skillsPath)
+
+      config.instructions ??= []
+      const instructionsPath = join(root, "AGENTS.md")
+      if (!config.instructions.includes(instructionsPath)) config.instructions.push(instructionsPath)
     },
   }
 }

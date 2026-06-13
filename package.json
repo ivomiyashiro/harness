@@ -1,12 +1,14 @@
 {
   "name": "opencode-harness",
   "version": "0.1.0",
-  "description": "Token-economic multi-agent development pipeline for opencode.",
+  "description": "Token-economic multi-agent development pipeline for Claude Code and opencode.",
   "type": "module",
   "main": "./index.js",
   "exports": "./index.js",
   "files": [
     "index.js",
+    ".claude-plugin/",
+    "CLAUDE.md",
     "AGENTS.md",
     "agents/",
     "commands/",
@@ -16,6 +18,7 @@
   "keywords": [
     "opencode",
     "opencode-plugin",
+    "claude-code-plugin",
     "agent",
     "workflow"
   ],
