@@ -25,7 +25,7 @@ Orchestrator-side. Judges catch SPEC drift, universal code-law drift, and local 
 
 ## Lite mode
 
-Single judge (`judge-a`), same inputs incl. the current spec path. No confirmation pair exists, so there is no both-confirmed set: findings are AUTO-DISMISSED + logged to `docs/learnings.md`, never surfaced as a user decision. Same 2-cycle re-judge cap and amended-AC guard apply.
+Single judge (`judge-a`), same inputs incl. the current spec path. No confirmation pair exists, so there is no both-confirmed set: findings from a single cycle are AUTO-DISMISSED + logged to `docs/learnings.md`, never surfaced as a user decision. Same amended-AC guard applies. However, the 2-cycle re-judge cap works differently here: if the same finding persists across both re-judge cycles (i.e. the judge still reports it after 2 attempts), it is NOT auto-dismissed — it SURFACES to the human as a FAILURE (category-3 gate). Auto-dismiss applies only within the cap, not after it is exhausted.
 
 ## Drift memory
 
