@@ -41,7 +41,7 @@ Phase order in `full` is enforced — no skipping. `hotfix`/`lite` jump straight
 
 ## Worktree protocol
 
-New feature in `full`/`epic` mode: create an isolated worktree + branch before any artifact is written (`rtk git worktree add ../<feature> -b feat/<feature>`); the feature's state lives in its branch. One spec = one worktree = one branch = one session. On resume, verify you are in the feature's worktree (branch matches); if not, tell the user which worktree to open. `hotfix` may run in place.
+New feature in `full`/`epic` mode: create an isolated worktree + branch before any artifact is written (`rtk git worktree add .worktrees/<feature> -b feat/<feature>`); worktrees live INSIDE the project under `.worktrees/` (gitignored), the feature's state lives in its branch. One spec = one worktree = one branch = one session. On resume, verify you are in the feature's worktree (branch matches); if not, tell the user which worktree to open. `hotfix` may run in place.
 
 ## Learnings
 
