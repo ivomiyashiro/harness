@@ -9,7 +9,7 @@ Orchestrator-side. Feedback goes to the phase that OWNS the defect — not blind
 
 | Feedback says | Defect owner | Action |
 | --- | --- | --- |
-| "that's not what I wanted" / missing or wrong requirement | spec | Re-open spec phase: amend the spec (user approves), re-plan affected tasks |
+| "that's not what I wanted" / missing or wrong requirement | spec | Re-open spec phase: amend `docs/specs/<feature>.md` IN-PLACE (user approves), replacing/updating the affected ACs so the file stays the single source of truth — NEVER create a parallel/second spec file and NEVER leave obsolete ACs that contradict the amendment. Then re-plan affected tasks |
 | Structure/approach wrong, spec is right | plan | Re-dispatch planner with the feedback; affected tasks redone |
 | Behavior bug, spec and plan are right | implement | New task file for the fix; implementer + re-judge touched code |
 | "looks wrong" / visual mismatch | visual | Back to `visual-mock` — update mock first, then implement from it |
