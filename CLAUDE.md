@@ -29,3 +29,23 @@ task 3: 4 tests green, 2 files, committed abc123
 ```
 
 Failures: report the raw error in one line. No retries without orders.
+
+## Human gates
+
+Stop for the human in exactly 3 categories — nothing else:
+
+1. **Intención** — what to build / which feature. The human sets direction.
+2. **Aprobación irreversible** — acts hard to undo: spec final, merge final, anything destructive.
+3. **Fallo** — implement/boot breaks, judge no converge, routing ambiguo. Surface, don't guess.
+
+Every other phase boundary is routine: **auto-proceder + objeción**.
+
+## Auto-proceder + objeción
+
+At a routine boundary, do NOT block asking for approval. Instead:
+
+- **Resumen** — state in one terse block what was done and what comes next (tasks + globs, hallazgos, etc.).
+- **Continuar mismo turno** — declare "procedo salvo que me detengas" and load the next skill in the SAME turn. No waiting.
+- **Reversible** — this is safe because every auto-step is undoable: revert vía `git`, or re-plan / re-judge. The human objects after the fact; nothing is locked in.
+
+Use this for every boundary that is NOT one of the 3 gate categories above.
