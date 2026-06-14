@@ -19,7 +19,7 @@ From npm, add the plugin to `opencode.json`:
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-harness"]
+  "plugin": ["harness"]
 }
 ```
 
@@ -39,7 +39,7 @@ To run Harness phases on non-Claude models, pass plugin options. The keys are Ha
   "$schema": "https://opencode.ai/config.json",
   "plugin": [
     [
-      "opencode-harness",
+      "harness",
       {
         "defaultModel": "openai/gpt-5.1",
         "models": {

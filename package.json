@@ -1,5 +1,5 @@
 {
-  "name": "opencode-harness",
+  "name": "harness",
   "version": "0.2.0",
   "description": "Token-economic multi-agent development pipeline for Claude Code and opencode.",
   "type": "module",
