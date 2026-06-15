@@ -6,16 +6,16 @@
     [
       "./index.js",
       {
-        "defaultModel": "openai/gpt-5.4mini",
+        "defaultModel": "openai/gpt-5.4-mini",
         "models": {
-          "explorer": "deepseek/deepseek-v4-flash",
+          "explorer": "opencode-go/deepseek-v4-flash",
           "planner": "openai/gpt-5.5",
-          "implementer": "moonshotai/kimi-k2.7-code",
+          "implementer": "opencode-go/kimi-k2.7-code",
           "judge-a": "openai/gpt-5.5",
-          "judge-b": "moonshotai/kimi-k2.7-code",
-          "fixer": "moonshotai/kimi-k2.7-code",
+          "judge-b": "opencode-go/kimi-k2.7-code",
+          "fixer": "opencode-go/kimi-k2.7-code",
           "visual": "openai/gpt-5.5",
-          "verifier": "openai/gpt-5.4mini"
+          "verifier": "openai/gpt-5.4-mini"
         }
       }
     ]

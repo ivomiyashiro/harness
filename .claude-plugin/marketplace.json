@@ -10,7 +10,7 @@
       "name": "harness",
       "description": "Token-economic multi-agent development pipeline: brainstorm, spec, plan, implement (TDD), judge, manual test, iterate.",
       "source": "./",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "category": "development-tools",
       "tags": ["agent", "workflow", "pipeline", "tdd"]
     }

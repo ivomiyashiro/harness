@@ -14,16 +14,37 @@ Install it in Claude Code from this local repo/plugin path as before. The openco
 
 ## Install in opencode
 
-From npm, add the plugin to `opencode.json`:
+Harness is not published to npm yet. Do not install it by adding only
+`"opencode-harness"` to `opencode.json`; opencode will try to resolve that
+name from npm and the plugin will not load.
+
+Use OpenCode's git-backed plugin install instead. Add this to the global
+opencode config at `~/.config/opencode/opencode.json`:
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["harness"]
+  "plugin": ["opencode-harness@git+https://github.com/ivomiyashiro/harness.git"]
 }
 ```
 
-For local development, point opencode at this repo:
+If `plugin` already exists, append the Harness entry to the existing array. Do
+not create a second `plugin` key; JSON object keys must be unique.
+
+Example with existing plugins preserved:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "existing-plugin",
+    "opencode-harness@git+https://github.com/ivomiyashiro/harness.git"
+  ]
+}
+```
+
+For local development from this repo, point opencode at this repo instead of a
+git:
 
 ```json
 {
@@ -39,7 +60,7 @@ To run Harness phases on non-Claude models, pass plugin options. The keys are Ha
   "$schema": "https://opencode.ai/config.json",
   "plugin": [
     [
-      "harness",
+      "opencode-harness@git+https://github.com/ivomiyashiro/harness.git",
       {
         "defaultModel": "openai/gpt-5.1",
         "models": {
@@ -61,6 +82,19 @@ To run Harness phases on non-Claude models, pass plugin options. The keys are Ha
 If `models` is omitted, opencode uses its current session/default model for Harness agents. Frontmatter aliases like `sonnet` and `haiku` are treated as documentation only unless replaced with provider-qualified model IDs such as `anthropic/claude-sonnet-4-6`.
 
 Restart opencode after changing plugin config.
+
+After restart, check that these commands appear in opencode:
+
+- `/harness:init`
+- `/harness:go`
+- `/harness:status`
+- `/harness:epic`
+
+For LLM installers: first verify whether the npm package exists with
+`npm view opencode-harness`. If it returns `E404`, use the git-backed plugin
+spec `opencode-harness@git+https://github.com/ivomiyashiro/harness.git`, not a
+bare npm package name. Preserve all existing config fields, edit only the
+`plugin` array, and validate that `opencode.json` remains valid JSON.
 
 ## Commands
 
