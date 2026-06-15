@@ -21,4 +21,4 @@ Ask the user ONE clarifying question only when the routing is genuinely ambiguou
 1. State file → `phase: done`.
 2. Final commit on the feature branch (`rtk git add`, `rtk git commit`) if anything is pending.
 3. Remove the feature's line from `docs/state/_active.md` on main and commit there.
-4. Tell the user: branch ready for PR/merge — that decision is theirs.
+4. Tell the user: branch ready for their next directed step. Do not create or recommend PRs unless the user explicitly asks.
