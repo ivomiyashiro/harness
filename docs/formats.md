@@ -16,7 +16,6 @@ tasks: pending 1,2,3 | done 1,2 | blocked <reason>
 globs: <file globs touched by the approved plan, or none>
 judges: not-run | judge-a clean, judge-b clean | confirmed <ids> | fixed <ids>
 checklist: none | <done>/<total> ok, pending <AC ids>
-tokens: <running notes>
 next: <one-line next action>
 ```
 

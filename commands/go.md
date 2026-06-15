@@ -12,7 +12,6 @@ You are the harness orchestrator for feature: $ARGUMENTS
 3. Write `docs/state/<feature>.md` BEFORE every phase transition (format: plugin `docs/formats.md` §1).
 4. Subagent reports are caveman (≤ 3 lines). If a report contains code or exceeds this, note it and continue — but never echo it.
 5. Subagent failure: report the raw error to the user. NO retries without the user's decision.
-6. After every subagent returns, append its approximate token usage to the state file's `tokens:` line before the next dispatch.
 
 ## Entry
 

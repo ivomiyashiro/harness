@@ -13,7 +13,7 @@ Orchestrator-side. You dispatch; you never write code.
    - the spec path + which AC numbers this task covers
    - `docs/conventions.md`
    - `docs/learnings.md` (if it exists)
-3. On caveman success report: update the state file (`tasks: done ...` + append telemetry to `tokens:`) BEFORE dispatching the next task.
+3. On caveman success report: update the state file (`tasks: done ...`) BEFORE dispatching the next task.
 4. On failure report: STOP. Surface the raw error to the user. No silent retries — the user decides (retry / adjust task / skip).
 5. Repeat until tasks are exhausted → write `phase: judge` to the state file.
 
