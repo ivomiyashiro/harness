@@ -35,7 +35,7 @@ Failures: report the raw error in one line. No retries without orders.
 Stop for the human in exactly 3 categories — nothing else:
 
 1. **Intención** — what to build / which feature. The human sets direction.
-2. **Aprobación irreversible** — acts hard to undo: spec final, merge final, anything destructive.
+2. **Aprobación irreversible / pre-start** — acts hard to undo: spec final, merge final, anything destructive; plus `hotfix`/`lite` plan approval before implementation starts.
 3. **Fallo** — implement/boot breaks, judge no converge, routing ambiguo. Surface, don't guess.
 
 Every other phase boundary is routine: **auto-proceder + objeción**.

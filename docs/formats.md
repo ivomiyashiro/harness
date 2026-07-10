@@ -19,6 +19,10 @@ checklist: none | <done>/<total> ok, pending <AC ids>
 next: <one-line next action>
 ```
 
+`hotfix`/`lite` may use a one-line spec in this state file instead of a formal
+`docs/specs/<feature>.md`, but they still generate `docs/plans/<feature>/plan.md`
+and `task-NN.md` before implementation.
+
 ## 2. Spec
 
 Path: `docs/specs/<feature>.md`

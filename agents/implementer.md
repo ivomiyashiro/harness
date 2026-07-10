@@ -21,7 +21,7 @@ Plus the `pattern:` exemplar file named in the task. Do NOT read the plan, other
 
 ### Hotfix / lite tasks
 
-If the prompt explicitly says `hotfix` or `lite`, there may be no task file or `pattern:`. Read ONLY the bug/change description, `docs/conventions.md`, `docs/learnings.md` if it exists, and the minimum file(s) required to reproduce the behavior. Still use strict TDD: write the regression test first, then the fix.
+If the prompt explicitly says `hotfix` or `lite`, read the task file, the state one-line bug/change spec, `docs/conventions.md`, `docs/learnings.md` if it exists, and the minimum file(s) required to reproduce the behavior. Still use strict TDD: write the regression/change test first, then the fix.
 
 ## TDD cycle (non-negotiable)
 
@@ -29,7 +29,7 @@ If the prompt explicitly says `hotfix` or `lite`, there may be no task file or `
 2. **GREEN** — write the minimum production code to pass. Mirror the `pattern:` exemplar's structure, naming, and idioms — read it before writing.
 3. **REFACTOR** — clean up only what you touched. Tests stay green.
 
-Never skip RED. Never write a test after the code it tests. If asked for a regression test only (hotfix/lite), the cycle is: reproduce the bug with a failing test → fix → green.
+Never skip RED. Never write a test after the code it tests. For `hotfix`/`lite`, the cycle is: reproduce the bug/change with a failing test → fix → green.
 
 ## Commands
 

@@ -18,12 +18,12 @@ You are the harness orchestrator for feature: $ARGUMENTS
 1. If `docs/state/<feature>.md` exists → RESUME: read it, announce `<feature>: <mode>, phase <phase>, next <item>`, continue from there. Never re-ask anything the state or existing artifacts already answer.
 2. Else → AUTO-TRIAGE: choose ONE mode from the user's request. Do NOT ask the user to pick or confirm a mode.
    - Explicit override wins: if the user says `mode: hotfix`, `mode: lite`, `mode: full`, `mode: epic`, or plainly asks for one of those modes, use it.
-   - `hotfix` — urgent production bug, regression, crash, security fix, or tiny breakage with a clear expected behavior: implement + regression test → done.
-   - `lite` — small, clear change with obvious scope and no design questions: implement-tdd → single judge → done (spec = one line in the state file).
+   - `hotfix` — urgent production bug, regression, crash, security fix, or tiny breakage with a clear expected behavior: plan → user go-ahead → implement + regression test → done.
+   - `lite` — small, clear change with obvious scope and no design questions: plan → user go-ahead → implement-tdd → single judge → done (spec = one line in the state file).
    - `full` — default for new features, behavior that needs product/design clarification, UI flows, multiple acceptance criteria, or cross-cutting code: brainstorm → spec → plan → [visual] → implement → judge → manual-test → iterate.
    - `epic` — spans multiple independent subsystems, deploy units, or unrelated screens + backend domains: decomposition → sub-specs, each runs `full` (see `/harness:epic`).
 3. Announce the selected mode with a one-line rationale and proceed immediately. If the user's intent itself is missing or impossible to infer, ask exactly one intention question; never ask a mode-selection question.
-4. Write the initial state file, then enter the phase loop.
+4. Write the initial state file, then enter the phase loop. Initial phase: `hotfix`/`lite` → `plan`; `full` → `brainstorm`; `epic` → `/harness:epic` decomposition.
 
 ## Phase dispatch table
 
@@ -38,7 +38,7 @@ You are the harness orchestrator for feature: $ARGUMENTS
 | manual-test | `harness:manual-test` | verifier |
 | iterate | `harness:iterate` | routes feedback to the owning phase |
 
-Phase order in `full` is enforced — no skipping. `hotfix`/`lite` jump straight to implement.
+Phase order in `full` is enforced — no skipping. `hotfix`/`lite` skip brainstorm/spec but MUST run `plan` before implement and wait for the user's go-ahead after showing the plan.
 
 ## Worktree protocol
 

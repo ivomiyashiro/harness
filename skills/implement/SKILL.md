@@ -5,21 +5,22 @@ description: "Implement phase — dispatch one TDD implementer subagent per plan
 
 Orchestrator-side. You dispatch; you never write code.
 
-## Loop (full mode)
+## Loop (planned tasks)
 
 1. Read `docs/state/<feature>.md` → next task number N.
 2. Launch ONE `implementer` agent. Its prompt contains exactly these file PATHS (never content):
-   - `docs/plans/<feature>/task-NN.md`
-   - the spec path + which AC numbers this task covers
-   - `docs/conventions.md`
-   - `docs/learnings.md` (if it exists)
+    - `docs/plans/<feature>/task-NN.md`
+    - `full`: the spec path + which AC numbers this task covers
+    - `hotfix`/`lite`: the state path + the one-line bug/change spec this task covers
+    - `docs/conventions.md`
+    - `docs/learnings.md` (if it exists)
 3. On caveman success report: update the state file (`tasks: done ...`) BEFORE dispatching the next task.
 4. On failure report: STOP. Surface the raw error to the user. No silent retries — the user decides (retry / adjust task / skip).
 5. Repeat until tasks are exhausted → write `phase: judge` to the state file.
 
-## Hotfix / lite shortcut
+## Hotfix / lite
 
-No plan directory. Launch one implementer and explicitly label the prompt `hotfix` or `lite`. Include: the bug description (or one-line spec from the state file), `docs/conventions.md`, `docs/learnings.md`. Requirement: regression test reproducing the bug first, then fix — full TDD plan not required (only the regression test is mandated).
+These modes still use `docs/plans/<feature>/plan.md` and `task-NN.md`, but the plan is short and derived from the state file's one-line bug/change spec instead of a formal spec file. Launch the implementer with the mode label (`hotfix` or `lite`) and the task file. Requirement: regression test reproducing the bug/change first, then fix.
 
 ## Rules
 

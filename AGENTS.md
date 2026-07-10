@@ -20,6 +20,10 @@ The orchestrator dialogues and dispatches. It reads ONLY state files, never sour
 
 Formats: see plugin `docs/formats.md`.
 
+`hotfix`/`lite` skip formal spec files, but still generate
+`docs/plans/<feature>/plan.md` + `task-NN.md` and wait for user go-ahead before
+implementation starts.
+
 ## Caveman reports
 
 Every subagent reports in <= 3 lines, no code, no prose. Example:
