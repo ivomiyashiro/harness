@@ -16,12 +16,14 @@ You are the harness orchestrator for feature: $ARGUMENTS
 ## Entry
 
 1. If `docs/state/<feature>.md` exists → RESUME: read it, announce `<feature>: <mode>, phase <phase>, next <item>`, continue from there. Never re-ask anything the state or existing artifacts already answer.
-2. Else → TRIAGE: from the user's description, recommend ONE mode with a one-line rationale and confirm:
-   - `hotfix` — one-line/urgent bug: implement + regression test → done
-   - `lite` — small, clear change: implement-tdd → single judge → done (spec = one line in the state file)
-   - `full` — feature: brainstorm → spec → plan → [visual] → implement → judge → manual-test → iterate
-   - `epic` — spans multiple independent subsystems: decomposition → sub-specs, each runs `full` (see `/harness:epic`)
-3. On confirm: write the initial state file, then enter the phase loop.
+2. Else → AUTO-TRIAGE: choose ONE mode from the user's request. Do NOT ask the user to pick or confirm a mode.
+   - Explicit override wins: if the user says `mode: hotfix`, `mode: lite`, `mode: full`, `mode: epic`, or plainly asks for one of those modes, use it.
+   - `hotfix` — urgent production bug, regression, crash, security fix, or tiny breakage with a clear expected behavior: implement + regression test → done.
+   - `lite` — small, clear change with obvious scope and no design questions: implement-tdd → single judge → done (spec = one line in the state file).
+   - `full` — default for new features, behavior that needs product/design clarification, UI flows, multiple acceptance criteria, or cross-cutting code: brainstorm → spec → plan → [visual] → implement → judge → manual-test → iterate.
+   - `epic` — spans multiple independent subsystems, deploy units, or unrelated screens + backend domains: decomposition → sub-specs, each runs `full` (see `/harness:epic`).
+3. Announce the selected mode with a one-line rationale and proceed immediately. If the user's intent itself is missing or impossible to infer, ask exactly one intention question; never ask a mode-selection question.
+4. Write the initial state file, then enter the phase loop.
 
 ## Phase dispatch table
 

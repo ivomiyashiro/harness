@@ -92,7 +92,7 @@ git-backed plugin spec `opencode-harness@git+https://github.com/ivomiyashiro/har
 
 ## Commands
 
-- `/harness:go <feature>` starts or resumes a pipeline.
+- `/harness:go <feature>` starts or resumes a pipeline. New work auto-detects `hotfix`, `lite`, `full`, or `epic` unless the user explicitly names a mode.
 - `/harness:init` creates project conventions.
 - `/harness:status [feature]` reports active work.
 - `/harness:epic <name>` decomposes oversized initiatives.
