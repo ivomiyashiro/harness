@@ -14,11 +14,7 @@ Install it in Claude Code from this local repo/plugin path as before. The openco
 
 ## Install in opencode
 
-Harness is not published to npm yet. Do not install it by adding only
-`"opencode-harness"` to `opencode.json`; opencode will try to resolve that
-name from npm and the plugin will not load.
-
-Use OpenCode's git-backed plugin install instead. Add this to the global
+Use opencode's git-backed plugin install. Add this to the global
 opencode config at `~/.config/opencode/opencode.json`:
 
 ```json
@@ -90,11 +86,9 @@ After restart, check that these commands appear in opencode:
 - `/harness:status`
 - `/harness:epic`
 
-For LLM installers: first verify whether the npm package exists with
-`npm view opencode-harness`. If it returns `E404`, use the git-backed plugin
-spec `opencode-harness@git+https://github.com/ivomiyashiro/harness.git`, not a
-bare npm package name. Preserve all existing config fields, edit only the
-`plugin` array, and validate that `opencode.json` remains valid JSON.
+For LLM installers: preserve all existing config fields, edit only the
+`plugin` array, and validate that `opencode.json` remains valid JSON. Use the
+git-backed plugin spec `opencode-harness@git+https://github.com/ivomiyashiro/harness.git`.
 
 ## Commands
 

@@ -8,12 +8,12 @@
       {
         "defaultModel": "openai/gpt-5.4-mini",
         "models": {
-          "explorer": "opencode-go/deepseek-v4-flash",
+          "explorer": "openai/gpt-5.4-mini",
           "planner": "openai/gpt-5.5",
-          "implementer": "opencode-go/kimi-k2.7-code",
+          "implementer": "openai/gpt-5.5",
           "judge-a": "openai/gpt-5.5",
-          "judge-b": "opencode-go/kimi-k2.7-code",
-          "fixer": "opencode-go/kimi-k2.7-code",
+          "judge-b": "openai/gpt-5.5",
+          "fixer": "copenai/gpt-5.5",
           "visual": "openai/gpt-5.5",
           "verifier": "openai/gpt-5.4-mini"
         }
