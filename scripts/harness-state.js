@@ -10,8 +10,10 @@ const defaults = {
   revision: 0,
   branch: "",
   next: "",
-  plan: { exists: false, hasUi: false },
+  spec: { exists: false, inline: false },
+  plan: { exists: false, hasUi: false, tasksExist: false },
   approvals: {},
+  preservedApprovals: [],
   gates: {},
   checkpoints: {},
   registry: [],
@@ -64,7 +66,9 @@ export function loadState(input) {
 
 function approved(state, gate) {
   const evidence = state.approvals?.[gate]
-  return evidence?.approved === true && evidence?.gate === gate && evidence?.revision === state.revision
+  const current = evidence?.revision === state.revision
+  const preserved = evidence?.revision < state.revision && state.preservedApprovals?.includes(gate)
+  return evidence?.approved === true && evidence?.gate === gate && (current || preserved)
 }
 
 function requireApproval(state, gate) {
@@ -86,19 +90,19 @@ function reject(rule) {
 }
 
 const modeTransitions = {
-  hotfix: { plan: ["implement"], implement: ["judge"], judge: ["verify"], verify: ["done"], iterate: ["implement"] },
-  lite: { plan: ["implement"], implement: ["judge"], judge: ["verify"], verify: ["done"], iterate: ["implement"] },
+  hotfix: { plan: ["implement"], implement: ["judge", "iterate"], judge: ["verify", "iterate"], verify: ["iterate", "done"], iterate: ["implement"] },
+  lite: { plan: ["implement"], implement: ["judge", "iterate"], judge: ["verify", "iterate"], verify: ["iterate", "done"], iterate: ["implement"] },
   full: {
     brainstorm: ["spec"],
     spec: ["plan"],
     plan: ["visual", "implement"],
-    visual: ["implement"],
-    implement: ["judge"],
-    judge: ["verify"],
+    visual: ["implement", "iterate"],
+    implement: ["judge", "iterate"],
+    judge: ["verify", "iterate"],
     verify: ["iterate", "done"],
     iterate: ["spec", "plan", "visual", "implement"],
   },
-  epic: { plan: ["implement"], implement: ["judge"], judge: ["verify"], verify: ["done"], iterate: ["implement"] },
+  epic: { plan: ["implement"], implement: ["judge", "iterate"], judge: ["verify", "iterate"], verify: ["iterate", "done"], iterate: ["implement"] },
 }
 
 function checkpointDone(state, name) {
@@ -118,7 +122,6 @@ export function checkTransition(input, requested) {
     "complete-spec": ["plan", "spec"],
     "complete-implement": ["judge", "implement"],
     "complete-judge": ["verify", "judge"],
-    "request-iteration": ["iterate", "verify"],
   }
   if (completions[requested]) {
     const [target, checkpoint] = completions[requested]
@@ -131,6 +134,12 @@ export function checkTransition(input, requested) {
       if (approvalRule) return reject(approvalRule)
     }
     return ok(target)
+  }
+
+  if (requested === "request-iteration") {
+    if (state.phase === "iterate") return ok("iterate")
+    const rule = requireDeclaredTransition(state, "iterate")
+    return rule ? reject(rule) : ok("iterate")
   }
 
   if (requested === "complete-plan") {
@@ -163,6 +172,21 @@ export function checkTransition(input, requested) {
     }
     const rule = requireDeclaredTransition(state, "implement")
     if (rule) return reject(rule)
+    const planRule = requirePlan(state)
+    if (planRule) return reject(planRule)
+    if (!state.plan?.tasksExist) return reject("task artifacts missing")
+    if (["full", "epic"].includes(state.mode) && !state.spec?.exists) return reject("spec artifact missing")
+    if (["hotfix", "lite"].includes(state.mode) && !state.spec?.inline && !state.spec?.exists) return reject("inline specification missing")
+    const planApprovalRule = requireApproval(state, "plan")
+    if (planApprovalRule) return reject(planApprovalRule)
+    if (state.mode === "full") {
+      const specApprovalRule = requireApproval(state, "spec")
+      if (specApprovalRule) return reject(specApprovalRule)
+      if (state.plan.hasUi) {
+        const visualApprovalRule = requireApproval(state, "visual")
+        if (visualApprovalRule) return reject(visualApprovalRule)
+      }
+    }
     return ok("implement")
   }
 
@@ -185,7 +209,7 @@ function invalidated(state, { affectedTasks = [], invalidatedGates = [] } = {}) 
   const invalidGates = new Set(invalidatedGates)
   const revision = state.revision + 1
   const approvals = Object.fromEntries(Object.entries(state.approvals).flatMap(([gate, evidence]) =>
-    invalidGates.has(gate) ? [] : [[gate, { ...evidence, revision }]],
+    invalidGates.has(gate) ? [] : [[gate, evidence]],
   ))
   const done = state.tasks.done.filter((task) => !affected.has(task))
   const pending = [...state.tasks.pending]
@@ -194,6 +218,7 @@ function invalidated(state, { affectedTasks = [], invalidatedGates = [] } = {}) 
     ...state,
     revision,
     approvals,
+    preservedApprovals: Object.keys(approvals),
     gates: Object.fromEntries(Object.entries(state.gates).filter(([gate]) => !invalidGates.has(gate))),
     tasks: { ...state.tasks, done, pending },
     judge: { passed: false, findings: [] },

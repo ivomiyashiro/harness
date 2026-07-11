@@ -126,7 +126,12 @@ test("AC-7 downstream invalidation", () => {
     mode: "full",
     phase: "iterate",
     revision: 1,
-    approvals: { spec: { gate: "spec", revision: 1, approved: true } },
+    spec: { exists: true },
+    plan: { exists: true, tasksExist: true },
+    approvals: {
+      spec: { gate: "spec", revision: 1, approved: true },
+      plan: { gate: "plan", revision: 1, approved: true },
+    },
     tasks: { done: ["task-01"], pending: [] },
     judge: { passed: true, findings: ["fixed"] },
     verification: { passed: true },
@@ -136,7 +141,7 @@ test("AC-7 downstream invalidation", () => {
   const result = transition(state, "route-to-implement")
 
   assert.equal(result.state.phase, "implement")
-  assert.equal(result.state.approvals.spec.revision, 2)
+  assert.equal(result.state.approvals.spec.revision, 1)
   assert.deepEqual(result.state.tasks, state.tasks)
   assert.equal(result.state.revision, 2)
   assert.deepEqual(result.state.judge, { passed: false, findings: [] })
@@ -186,7 +191,12 @@ test("FSM-2 route-to-implement preserves tasks and invalidates only downstream s
     mode: "full",
     phase: "iterate",
     revision: 8,
-    approvals: { plan: { gate: "plan", revision: 8, approved: true } },
+    spec: { exists: true },
+    plan: { exists: true, tasksExist: true },
+    approvals: {
+      spec: { gate: "spec", revision: 8, approved: true },
+      plan: { gate: "plan", revision: 8, approved: true },
+    },
     tasks: { done: ["task-01"], pending: ["task-02"] },
     checkpoints: { implement: "done", judge: "done", verify: "done", commit: "done" },
     finalization: { commit: true, registry: false, cleanup: false },
@@ -194,7 +204,7 @@ test("FSM-2 route-to-implement preserves tasks and invalidates only downstream s
 
   const result = transition(state, "route-to-implement").state
   assert.deepEqual(result.tasks, state.tasks)
-  assert.equal(result.approvals.plan.revision, 9)
+  assert.equal(result.approvals.plan.revision, 8)
   assert.equal(result.checkpoints.implement, "done")
   assert.equal(result.checkpoints.judge, "pending")
   assert.equal(result.checkpoints.commit, "pending")
@@ -207,7 +217,14 @@ test("route-to-implement rejects undeclared mode routes and validates idempotent
     assert.equal(undeclared.ok, false)
     assert.match(undeclared.rule, /not declared/)
 
-    const first = transition(canonicalState({ mode, phase: "iterate" }), "route-to-implement")
+    const revision = 2
+    const approvals = { plan: { gate: "plan", revision, approved: true } }
+    if (mode === "full") approvals.spec = { gate: "spec", revision, approved: true }
+    const first = transition(canonicalState({
+      mode, phase: "iterate", revision,
+      spec: { exists: ["full", "epic"].includes(mode), inline: ["hotfix", "lite"].includes(mode) },
+      plan: { exists: true, tasksExist: true }, approvals,
+    }), "route-to-implement")
     const resumed = transition(first.state, "route-to-implement")
     assert.equal(first.ok, true)
     assert.deepEqual(resumed.state, first.state)
@@ -222,6 +239,8 @@ test("AC-7 selectively resets affected tasks and rebases only preserved approval
     mode: "full",
     phase: "iterate",
     revision: 4,
+    spec: { exists: true },
+    plan: { exists: true, tasksExist: true },
     tasks: { done: ["task-01", "task-02"], pending: ["task-03"] },
     approvals: {
       spec: { gate: "spec", revision: 4, approved: true },
@@ -237,11 +256,44 @@ test("AC-7 selectively resets affected tasks and rebases only preserved approval
   }).state
 
   assert.deepEqual(result.tasks, { done: ["task-01"], pending: ["task-03", "task-02"] })
-  assert.equal(result.approvals.spec.revision, 5)
-  assert.equal(result.approvals.plan.revision, 5)
+  assert.equal(result.approvals.spec.revision, 4)
+  assert.equal(result.approvals.plan.revision, 4)
   assert.equal(result.approvals.visual, undefined)
   assert.equal(result.gates.visual, undefined)
   assert.equal(checkTransition({ ...result, phase: "plan", plan: { exists: true, hasUi: false } }, "start-implement").ok, true)
+})
+
+test("feedback enters iterate legally in every mode without direct bypass", () => {
+  for (const mode of ["hotfix", "lite", "full", "epic"]) {
+    for (const phase of ["implement", "judge", "verify"]) {
+      assert.equal(checkTransition(canonicalState({ mode, phase }), "request-iteration").ok, true)
+    }
+    assert.equal(checkTransition(canonicalState({ mode, phase: "plan" }), "request-iteration").ok, false)
+  }
+})
+
+test("iterate route requires artifact and UI approval prerequisites", () => {
+  const base = { mode: "full", phase: "iterate", revision: 3 }
+  assert.match(checkTransition(canonicalState(base), "route-to-implement").rule, /plan artifact/)
+  const artifacts = { ...base, spec: { exists: true }, plan: { exists: true, tasksExist: true, hasUi: true } }
+  assert.match(checkTransition(canonicalState(artifacts), "route-to-implement").rule, /approval missing for plan/)
+  const planApproved = { ...artifacts, approvals: { plan: { gate: "plan", revision: 3, approved: true } } }
+  assert.match(checkTransition(canonicalState(planApproved), "route-to-implement").rule, /approval missing for spec/)
+  const upstreamApproved = { ...planApproved, approvals: { ...planApproved.approvals, spec: { gate: "spec", revision: 3, approved: true } } }
+  assert.match(checkTransition(canonicalState(upstreamApproved), "route-to-implement").rule, /approval missing for visual/)
+})
+
+test("iteration preserves evidence and removes invalidated gate approvals", () => {
+  const evidence = { gate: "plan", revision: 6, approved: true, by: "human", evidence: "msg-42" }
+  const state = canonicalState({
+    mode: "lite", phase: "iterate", revision: 6, spec: { inline: true },
+    plan: { exists: true, tasksExist: true },
+    approvals: { plan: evidence, visual: { gate: "visual", revision: 6, approved: true } },
+  })
+  const result = transition(state, "route-to-implement", { invalidatedGates: ["visual"] }).state
+  assert.deepEqual(result.approvals.plan, evidence)
+  assert.equal(result.approvals.visual, undefined)
+  assert.equal(checkTransition({ ...result, phase: "iterate" }, "route-to-implement").ok, true)
 })
 
 test("AC-11 unversioned load safe defaults and no inferred approval", () => {
