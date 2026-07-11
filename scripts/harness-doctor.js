@@ -213,7 +213,49 @@ function checkModels() {
     }
   }
 
-  if (fix && changed) write(file, `${JSON.stringify(config, null, 2)}\n`)
+  if (fix && changed) {
+    const pluginKey = /"plugin"\s*:/.exec(raw)
+    const arrayStart = pluginKey ? raw.indexOf("[", pluginKey.index + pluginKey[0].length) : -1
+    const spans = []
+    if (arrayStart !== -1) {
+      let depth = 0
+      let start = arrayStart + 1
+      let string = false
+      let escaped = false
+      for (let index = arrayStart + 1; index < raw.length; index += 1) {
+        const character = raw[index]
+        if (string) {
+          if (escaped) escaped = false
+          else if (character === "\\") escaped = true
+          else if (character === '"') string = false
+          continue
+        }
+        if (character === '"') string = true
+        else if (character === "[" || character === "{") depth += 1
+        else if (character === "]" || character === "}") {
+          if (character === "]" && depth === 0) {
+            spans.push([start, index])
+            break
+          }
+          depth -= 1
+        } else if (character === "," && depth === 0) {
+          spans.push([start, index])
+          start = index + 1
+        }
+      }
+    }
+
+    let updated = raw
+    for (const [start, end] of spans.reverse()) {
+      const source = raw.slice(start, end)
+      let plugin
+      try { plugin = JSON.parse(source) } catch { continue }
+      if (!Array.isArray(plugin) || typeof plugin[0] !== "string" || !plugin[0].includes("harness")) continue
+      const configured = (config.plugin ?? []).find((entry) => Array.isArray(entry) && entry[0] === plugin[0])
+      if (configured) updated = updated.slice(0, start) + JSON.stringify(configured) + updated.slice(end)
+    }
+    write(file, updated)
+  }
 }
 
 function checkActiveRegistry() {

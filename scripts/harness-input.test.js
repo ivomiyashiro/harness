@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { spawnSync } from "node:child_process"
 import test from "node:test"
 
 import { parseCommandArguments, parseFeatureSlug } from "./harness-input.js"
@@ -30,4 +31,15 @@ test("accepts only the canonical doctor option", () => {
   assert.deepEqual(parseCommandArguments("doctor", ["--fix"]), { fix: true })
   assert.throws(() => parseCommandArguments("doctor", ["--fix;rm"]), /invalid doctor arguments/)
   assert.throws(() => parseCommandArguments("doctor", ["--fix", "extra"]), /invalid doctor arguments/)
+})
+
+test("CLI invocation executes validation and rejects unsafe argv", () => {
+  const script = new URL("./harness-input.js", import.meta.url)
+  const valid = spawnSync(process.execPath, [script.pathname, "go", "safe-feature"], { encoding: "utf8" })
+  const unsafe = spawnSync(process.execPath, [script.pathname, "go", "../unsafe"], { encoding: "utf8" })
+
+  assert.equal(valid.status, 0)
+  assert.equal(valid.stdout, '{"feature":"safe-feature"}\n')
+  assert.equal(unsafe.status, 2)
+  assert.match(unsafe.stderr, /invalid feature slug/)
 })

@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import { resolve } from "node:path"
+import { pathToFileURL } from "node:url"
+
 const FEATURE_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 export function parseFeatureSlug(value) {
@@ -27,7 +30,7 @@ export function parseCommandArguments(command, args) {
   throw new TypeError(`invalid ${command} arguments`)
 }
 
-if (process.argv[1] && import.meta.url === new URL(process.argv[1], "file:").href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   try {
     process.stdout.write(`${JSON.stringify(parseCommandArguments(process.argv[2], process.argv.slice(3)))}\n`)
   } catch (error) {

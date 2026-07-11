@@ -40,7 +40,7 @@ tasks: done 1
 checkpoints: spec done, plan approved, visual not-required, implement done, judge done, verify done, commit done, registry done, cleanup done
 next: complete
 `)
-  const unrelatedBefore = JSON.stringify(JSON.parse(readFileSync(configPath, "utf8")).plugin[0][1])
+  const unrelatedBefore = unrelatedTuple
   const stateBefore = readFileSync(statePath, "utf8")
 
   const result = spawnSync(process.execPath, [doctor.pathname, "--fix"], { cwd: root, encoding: "utf8" })
@@ -49,8 +49,8 @@ next: complete
   const repairs = result.stdout.match(/^FIX .+$/gm) ?? []
 
   assert.equal(result.status, 0, result.stdout + result.stderr)
-  assert.equal(JSON.stringify(JSON.parse(configAfter).plugin[0][1]), unrelatedBefore)
-  assert.match(configAfter, /"defaultModel": "openai\/gpt-5\.6-terra"/)
+  assert.ok(configAfter.includes(unrelatedBefore), "unrelated plugin tuple must remain byte-equivalent")
+  assert.equal(JSON.parse(configAfter).plugin[1][1].defaultModel, "openai/gpt-5.6-terra")
   assert.equal(stateAfter, stateBefore)
   assert.deepEqual(repairs, ["FIX opencode.json"])
 })

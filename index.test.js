@@ -30,4 +30,8 @@ test("restricts observe-only agents to explicit Bash allowlists", async () => {
   assert.equal(config.agent.explorer.permission.bash["git log *"], "allow")
   assert.equal(config.agent["judge-a"].permission.bash["git diff *"], "allow")
   assert.equal(config.agent.verifier.permission.bash["npm run *"], "allow")
+  assert.equal(config.agent.verifier.permission.bash["node --test *"], "allow")
+  assert.equal(config.agent.verifier.permission.bash["node *"], undefined)
+  assert.equal(config.agent.verifier.permission.bash["node -e *"], undefined)
+  assert.equal(config.agent.verifier.permission.bash["rtk node *"], undefined)
 })
