@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFile, realpath } from "node:fs/promises";
 import path from "node:path";
-import { assertResumeIdentity } from "./harness-state.js";
+import { assertResumeIdentity, loadPersistedFeatureIdentity } from "./harness-state.js";
 import { updateRegistry, validateDefaultBranch } from "./harness-registry.js";
 import { runHarnessProcess } from "./harness-process.js";
 
@@ -25,12 +25,13 @@ export async function runWorkflow(argv, cwd = process.cwd()) {
   const args = options(values);
   if (command === "resume-identity") {
     if (!args.state || !args.repository || Object.keys(args).length !== 2) throw new Error("usage: resume-identity --state <json> --repository <path>");
-    const persisted = JSON.parse(await readFile(args.state, "utf8"));
+    const repository = await realpath(args.repository);
+    const persisted = await loadPersistedFeatureIdentity(args.state, repository);
     const current = {
       worktree: await realpath(cwd),
       branch: (await runHarnessProcess("git", ["branch", "--show-current"], { cwd })).stdout.trim(),
     };
-    await assertResumeIdentity(persisted, current, await realpath(args.repository));
+    await assertResumeIdentity(persisted, current, repository);
     return { status: "identity-ok" };
   }
   if (command === "update-registry") {

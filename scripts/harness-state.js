@@ -282,6 +282,7 @@ export function transition(input, requested, options) {
   return { ok: true, state: { ...state, phase: checked.phase } }
 }
 import { resolveInside } from './harness-paths.js'
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const SAFE_BRANCH = /^(?!-)(?!.*\.\.)(?!.*(?:^|\/)\.lock(?:\/|$))[A-Za-z0-9][A-Za-z0-9._/-]*$/
@@ -299,6 +300,10 @@ export async function loadFeatureIdentity(state, repository) {
     throw new Error('persisted worktree must already be canonical')
   }
   return { worktree: state.worktree, branch: state.branch }
+}
+
+export async function loadPersistedFeatureIdentity(statePath, repository) {
+  return loadFeatureIdentity(loadState(await readFile(statePath, 'utf8')), repository)
 }
 
 export async function assertResumeIdentity(persisted, current, repository) {

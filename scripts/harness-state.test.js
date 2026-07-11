@@ -415,11 +415,11 @@ test("AC-15 missing read-files or optional conventions never blocks bounded work
   assert.match(docs, /missing plan context is not a reason to stop/i)
   assert.match(docs, /discover.*repository context/i)
 })
-import { mkdtemp, mkdir, realpath } from 'node:fs/promises'
+import { mkdtemp, mkdir, realpath, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
-import { assertResumeIdentity, loadFeatureIdentity } from './harness-state.js'
+import { assertResumeIdentity, loadFeatureIdentity, loadPersistedFeatureIdentity } from './harness-state.js'
 
 test('preserves safe persisted worktree and branch identity', async () => {
   const repo = await mkdtemp(path.join(tmpdir(), 'harness-state-'))
@@ -453,4 +453,16 @@ test('rejects resume worktree and branch mismatches', async () => {
 
   await assert.rejects(assertResumeIdentity(persisted, { worktree: other, branch: persisted.branch }, canonicalRepo), /worktree mismatch/)
   await assert.rejects(assertResumeIdentity(persisted, { worktree, branch: 'feat/other' }, canonicalRepo), /branch mismatch/)
+})
+
+test('parses resume identity from canonical persisted Harness state', async () => {
+  const repo = await mkdtemp(path.join(tmpdir(), 'harness-state-'))
+  const worktree = await realpath(repo)
+  const statePath = path.join(repo, 'feature.md')
+  await writeFile(statePath, `feature: safe-feature\nmode: full\nphase: implement\nworktree: ${worktree}\nbranch: feat/safe-feature\n`)
+
+  assert.deepEqual(await loadPersistedFeatureIdentity(statePath, repo), {
+    worktree,
+    branch: 'feat/safe-feature',
+  })
 })
