@@ -125,6 +125,7 @@ test("AC-7 downstream invalidation", () => {
   const state = canonicalState({
     mode: "full",
     phase: "iterate",
+    revision: 1,
     approvals: { spec: { gate: "spec", revision: 1, approved: true } },
     tasks: { done: ["task-01"], pending: [] },
     judge: { passed: true, findings: ["fixed"] },
@@ -136,7 +137,8 @@ test("AC-7 downstream invalidation", () => {
 
   assert.equal(result.state.phase, "implement")
   assert.deepEqual(result.state.approvals, state.approvals)
-  assert.deepEqual(result.state.tasks, { done: [], pending: [] })
+  assert.deepEqual(result.state.tasks, state.tasks)
+  assert.equal(result.state.revision, 2)
   assert.deepEqual(result.state.judge, { passed: false, findings: [] })
   assert.deepEqual(result.state.verification, { passed: false })
   assert.deepEqual(result.state.manualChecklist, { items: [] })
@@ -145,22 +147,58 @@ test("AC-7 downstream invalidation", () => {
 test("AC-10 finalization checkpoints", () => {
   const incomplete = canonicalState({
     mode: "full",
-    phase: "finalize",
+    phase: "verify",
     verification: { passed: true },
     finalization: { commit: true, registry: false, cleanup: true },
   })
 
   const blocked = transition(incomplete, "finalize")
-  assert.equal(blocked.state.phase, "finalize")
+  assert.equal(blocked.state.phase, "verify")
   assert.match(blocked.rule, /registry checkpoint incomplete/)
 
   const complete = canonicalState({
     mode: "full",
-    phase: "finalize",
+    phase: "verify",
     verification: { passed: true },
     finalization: { commit: true, registry: true, cleanup: true },
   })
   assert.equal(transition(complete, "finalize").state.phase, "done")
+})
+
+test("FSM-1 canonical mode transitions stay within legal phases", () => {
+  const cases = [
+    ["full", "brainstorm", "complete-brainstorm", "spec", "brainstorm"],
+    ["full", "implement", "complete-implement", "judge", "implement"],
+    ["lite", "judge", "complete-judge", "verify", "judge"],
+    ["full", "verify", "request-iteration", "iterate", "verify"],
+  ]
+
+  for (const [mode, phase, request, expected, checkpoint] of cases) {
+    const result = transition(canonicalState({ mode, phase, checkpoints: { [checkpoint]: "done" } }), request)
+    assert.equal(result.ok, true)
+    assert.equal(result.state.phase, expected)
+  }
+  assert.equal(checkTransition(canonicalState({ mode: "lite", phase: "brainstorm", checkpoints: { brainstorm: "done" } }), "complete-brainstorm").ok, false)
+})
+
+test("FSM-2 route-to-implement preserves tasks and invalidates only downstream state", () => {
+  const state = canonicalState({
+    mode: "full",
+    phase: "verify",
+    revision: 8,
+    approvals: { plan: { gate: "plan", revision: 8, approved: true } },
+    tasks: { done: ["task-01"], pending: ["task-02"] },
+    checkpoints: { implement: "done", judge: "done", verify: "done", commit: "done" },
+    finalization: { commit: true, registry: false, cleanup: false },
+  })
+
+  const result = transition(state, "route-to-implement").state
+  assert.deepEqual(result.tasks, state.tasks)
+  assert.deepEqual(result.approvals, state.approvals)
+  assert.equal(result.checkpoints.implement, "done")
+  assert.equal(result.checkpoints.judge, "pending")
+  assert.equal(result.checkpoints.commit, "pending")
+  assert.equal(result.revision, 9)
 })
 
 test("AC-11 unversioned load safe defaults and no inferred approval", () => {

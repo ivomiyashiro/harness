@@ -85,18 +85,66 @@ function reject(rule) {
   return { ok: false, rule }
 }
 
+const modeTransitions = {
+  hotfix: { plan: ["implement"], implement: ["judge"], judge: ["verify"], verify: ["done"] },
+  lite: { plan: ["implement"], implement: ["judge"], judge: ["verify"], verify: ["done"] },
+  full: {
+    brainstorm: ["spec"],
+    spec: ["plan"],
+    plan: ["visual", "implement"],
+    visual: ["implement"],
+    implement: ["judge"],
+    judge: ["verify"],
+    verify: ["iterate", "done"],
+  },
+  epic: { plan: ["implement"], implement: ["judge"], judge: ["verify"], verify: ["done"] },
+}
+
+function checkpointDone(state, name) {
+  return state.checkpoints?.[name] === true || state.checkpoints?.[name] === "done"
+}
+
+function requireDeclaredTransition(state, target) {
+  if (modeTransitions[state.mode]?.[state.phase]?.includes(target)) return undefined
+  return `${state.mode} transition from ${state.phase} to ${target} is not declared`
+}
+
 export function checkTransition(input, requested) {
   const state = canonicalState(input)
+
+  const completions = {
+    "complete-brainstorm": ["spec", "brainstorm"],
+    "complete-spec": ["plan", "spec"],
+    "complete-implement": ["judge", "implement"],
+    "complete-judge": ["verify", "judge"],
+    "request-iteration": ["iterate", "verify"],
+  }
+  if (completions[requested]) {
+    const [target, checkpoint] = completions[requested]
+    if (state.phase === target && checkpointDone(state, checkpoint)) return ok(target)
+    const rule = requireDeclaredTransition(state, target)
+    if (rule) return reject(rule)
+    if (!checkpointDone(state, checkpoint)) return reject(`${checkpoint} checkpoint incomplete`)
+    if (requested === "complete-spec") {
+      const approvalRule = requireApproval(state, "spec")
+      if (approvalRule) return reject(approvalRule)
+    }
+    return ok(target)
+  }
 
   if (requested === "complete-plan") {
     if (state.checkpoints?.planCompleted && ["visual", "implement"].includes(state.phase)) return ok(state.phase)
     if (state.phase !== "plan") return reject("current phase must be plan")
-    return requirePlan(state) ? reject(requirePlan(state)) : requireApproval(state, "plan") ? reject(requireApproval(state, "plan")) : ok(state.mode === "full" && state.plan.hasUi ? "visual" : "implement")
+    const target = state.mode === "full" && state.plan.hasUi ? "visual" : "implement"
+    const declaredRule = requireDeclaredTransition(state, target)
+    return declaredRule ? reject(declaredRule) : requirePlan(state) ? reject(requirePlan(state)) : requireApproval(state, "plan") ? reject(requireApproval(state, "plan")) : ok(target)
   }
 
   if (requested === "start-implement") {
     if (state.phase === "implement") return ok("implement")
     if (!["plan", "visual"].includes(state.phase)) return reject("current phase must be plan or visual")
+    const declaredRule = requireDeclaredTransition(state, "implement")
+    if (declaredRule) return reject(declaredRule)
     if (state.mode === "full" && state.plan?.hasUi && state.phase === "visual") {
       const rule = requireApproval(state, "visual")
       return rule ? reject(rule) : ok("implement")
@@ -108,16 +156,17 @@ export function checkTransition(input, requested) {
   }
 
   if (requested === "route-to-implement") {
-    if (!["iterate", "judge", "verify", "manual-test", "finalize"].includes(state.phase)) return reject("current phase must be downstream of implement")
+    if (!["iterate", "judge", "verify"].includes(state.phase)) return reject("current phase must be downstream of implement")
     return ok("implement")
   }
 
   if (requested === "finalize") {
     if (state.phase === "done") return ok("done")
-    if (state.phase !== "finalize") return reject("current phase must be finalize")
-    if (!state.verification?.passed) return reject("verification checkpoint incomplete")
+    const rule = requireDeclaredTransition(state, "done")
+    if (rule) return reject(rule)
+    if (!state.verification?.passed && !checkpointDone(state, "verify")) return reject("verification checkpoint incomplete")
     for (const checkpoint of ["commit", "registry", "cleanup"]) {
-      if (!state.finalization?.[checkpoint]) return reject(`${checkpoint} checkpoint incomplete`)
+      if (!state.finalization?.[checkpoint] && !checkpointDone(state, checkpoint)) return reject(`${checkpoint} checkpoint incomplete`)
     }
     return ok("done")
   }
@@ -128,10 +177,19 @@ export function checkTransition(input, requested) {
 function invalidated(state) {
   return {
     ...state,
-    tasks: { done: [], pending: [] },
+    revision: state.revision + 1,
     judge: { passed: false, findings: [] },
     verification: { passed: false },
     manualChecklist: { items: [] },
+    checkpoints: {
+      ...state.checkpoints,
+      judge: "pending",
+      verify: "pending",
+      commit: "pending",
+      registry: "pending",
+      cleanup: "pending",
+    },
+    finalization: { commit: false, registry: false, cleanup: false },
   }
 }
 
@@ -150,6 +208,10 @@ export function transition(input, requested) {
     return { ok: true, state: { ...state, phase: next, gates, checkpoints: { ...state.checkpoints, planCompleted: true } } }
   }
   if (requested === "start-implement") return { ok: true, state: { ...state, phase: "implement" } }
+
+  if (["complete-brainstorm", "complete-spec", "complete-implement", "complete-judge", "request-iteration"].includes(requested)) {
+    return { ok: true, state: { ...state, phase: checked.phase } }
+  }
 
   return { ok: true, state: { ...state, phase: checked.phase } }
 }
