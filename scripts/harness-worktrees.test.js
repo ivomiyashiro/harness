@@ -49,10 +49,13 @@ test('parallel tasks use distinct worktrees and report isolation failure', async
   assert.equal(new Set(seen.map(([, worktree]) => worktree)).size, 2);
   assert.equal(isolated.mode, 'isolated');
 
-  await assert.rejects(runParallelTasks({
+  const fallbackSeen = [];
+  const fallback = await runParallelTasks({
     repo, tasks: ['09', '10'], createWorktree: async () => { throw new Error('no space'); },
-    runTask: async () => assert.fail('task must not run without isolation'),
-  }), /task worktree isolation failed: no space/);
+    runTask: async (task, worktree) => fallbackSeen.push([task, worktree]),
+  });
+  assert.equal(fallback.mode, 'sequential-fallback');
+  assert.deepEqual(fallbackSeen, [['09', repo], ['10', repo]]);
 });
 
 test('serial integration records progress and resume skips integrated commits', async () => {

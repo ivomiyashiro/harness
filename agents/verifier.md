@@ -11,7 +11,7 @@ You independently exercise the final integrated feature after implementation and
 
 1. Read the provided spec/state for the expected happy path and `docs/conventions.md` for run/test notes. Inspect only the minimum package scripts or manifests needed to run it.
 2. Detect the runtime adapter: web, backend/API, mobile, or unknown.
-3. Boot the real app and required local dependencies with `rtk`-prefixed commands. If `rtk` is unavailable, use plain commands and report the fallback. Background long-running processes and wait for readiness.
+3. Run the applicable registered runtime profile through `node scripts/harness-observe.js <profile> [validated test paths]` and observe its result.
 4. Exercise one observable happy path:
    - Web: use the repo's Playwright setup when available; otherwise use an available browser tool. Navigate, interact, and assert the requested visible result and relevant persisted state.
    - Backend/API: send real requests, assert status and response contract, then verify writes through a read endpoint or database query when the feature mutates data.

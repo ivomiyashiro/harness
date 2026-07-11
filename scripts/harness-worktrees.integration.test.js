@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 import test from "node:test"
 import assert from "node:assert/strict"
-import { mkdtempSync, writeFileSync } from "node:fs"
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { spawn, spawnSync } from "node:child_process"
-import { executeParallelTasks, runParallelTasks } from "./harness-worktrees.js"
+import { runParallelTasks, worktreeEntrypoint } from "./harness-worktrees.js"
 
 function git(cwd, ...args) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8" })
@@ -29,6 +29,12 @@ function commitTask(cwd, filename) {
   })
 }
 
+function worktreesCli(cwd, ...args) {
+  const result = spawnSync(process.execPath, [join(import.meta.dirname, "harness-worktrees.js"), ...args], { cwd, encoding: "utf8" })
+  assert.equal(result.status, 0, result.stderr)
+  return JSON.parse(result.stdout)
+}
+
 async function concurrentWorktreeFixture() {
   const root = mkdtempSync(join(tmpdir(), "harness-worktrees-"))
   git(root, "init", "-b", "feature/concurrency")
@@ -38,12 +44,11 @@ async function concurrentWorktreeFixture() {
   git(root, "add", ".gitignore")
   git(root, "commit", "-m", "test: initialize fixture")
   const statePath = join(root, "integration.json")
-  const result = await executeParallelTasks({
-    repo: root,
-    tasks: ["one", "two"],
-    statePath,
-    runTask: async (task, worktree) => commitTask(worktree, `task-${task}.txt`),
-  })
+  const prepared = worktreesCli(root, "prepare", "--repo", root, "--state", statePath, "--task", "one", "--task", "two")
+  await Promise.all(prepared.results.map(({ task, worktree }) => commitTask(worktree, `task-${task}.txt`)))
+  const commits = prepared.worktrees.map((worktree) => git(worktree, "rev-parse", "HEAD"))
+  const integration = worktreesCli(root, "integrate", "--repo", root, "--state", statePath, ...commits.flatMap((commit) => ["--commit", commit]))
+  const result = { ...prepared, commits, integration }
   assert.notEqual(git(result.worktrees[0], "rev-parse", "--git-path", "index"), git(result.worktrees[1], "rev-parse", "--git-path", "index"))
   const taskOneFiles = git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", result.commits[0]).split("\n")
   const taskTwoFiles = git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", result.commits[1]).split("\n")
@@ -59,6 +64,34 @@ test("AC-5 concurrent tasks use isolated indexes and integrate uncontaminated co
   assert.deepEqual(result.taskTwoFiles, ["task-two.txt"])
   assert.deepEqual(result.integratedFiles, ["task-one.txt", "task-two.txt"])
   assert.deepEqual(result.result.integration.integrated, result.result.commits)
+})
+
+test("FR-4 entrypoint falls back sequentially before tasks and integration conflicts stay checkpointed", async () => {
+  const root = mkdtempSync(join(tmpdir(), "harness-worktrees-fallback-"))
+  git(root, "init", "-b", "feature/fallback")
+  git(root, "config", "user.name", "Harness Test")
+  git(root, "config", "user.email", "harness@example.test")
+  writeFileSync(join(root, "value"), "base\n")
+  git(root, "add", "value")
+  git(root, "commit", "-m", "base")
+  const base = git(root, "rev-parse", "HEAD")
+  writeFileSync(join(root, "value"), "task\n")
+  git(root, "commit", "-am", "task")
+  const task = git(root, "rev-parse", "HEAD")
+  git(root, "reset", "--hard", base)
+  writeFileSync(join(root, "value"), "feature\n")
+  git(root, "commit", "-am", "feature")
+  const before = git(root, "rev-parse", "HEAD")
+  const statePath = join(root, "integration.json")
+  const fallback = await worktreeEntrypoint(["prepare", "--repo", root, "--state", statePath, "--task", "one", "--task", "two"], {
+    createWorktree: async () => { throw new Error("isolation unavailable") },
+  })
+  assert.equal(fallback.mode, "sequential-fallback")
+  assert.deepEqual(fallback.results, [{ task: "one", worktree: root }, { task: "two", worktree: root }])
+  const conflict = spawnSync(process.execPath, [join(import.meta.dirname, "harness-worktrees.js"), "integrate", "--repo", root, "--state", statePath, "--commit", task], { encoding: "utf8" })
+  assert.equal(conflict.status, 1)
+  assert.equal(git(root, "rev-parse", "HEAD"), before)
+  assert.equal(JSON.parse(readFileSync(statePath, "utf8")).pending, task)
 })
 
 test("AC-5 creates task worktrees from a linked feature worktree", async () => {

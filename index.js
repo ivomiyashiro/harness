@@ -6,10 +6,10 @@ const root = dirname(fileURLToPath(import.meta.url))
 
 const observeWrapper = `${process.execPath} ${join(root, "scripts", "harness-observe.js")}`
 const observeOnlyBashAllowlists = {
-  explorer: ["git-diff", "git-log", "git-status"].map((profile) => `${observeWrapper} ${profile}`),
-  "judge-a": ["git-diff", "git-log", "git-status"].map((profile) => `${observeWrapper} ${profile}`),
-  "judge-b": ["git-diff", "git-log", "git-status"].map((profile) => `${observeWrapper} ${profile}`),
-  verifier: ["node-test", "bun-test", "cargo-test", "pytest", "flutter-test"].map((profile) => `${observeWrapper} ${profile}`),
+  explorer: ["git-diff", "git-log", "git-show", "git-status"].flatMap((profile) => [`${observeWrapper} ${profile}`, `${observeWrapper} ${profile} *`]),
+  "judge-a": ["git-diff", "git-log", "git-show", "git-status"].flatMap((profile) => [`${observeWrapper} ${profile}`, `${observeWrapper} ${profile} *`]),
+  "judge-b": ["git-diff", "git-log", "git-show", "git-status"].flatMap((profile) => [`${observeWrapper} ${profile}`, `${observeWrapper} ${profile} *`]),
+  verifier: ["node-test", "bun-test", "cargo-test", "pytest", "flutter-test"].flatMap((profile) => [`${observeWrapper} ${profile}`, `${observeWrapper} ${profile} *`]),
 }
 
 const harnessAgentPrompt = `You are Harness, the primary opencode agent for the Harness pipeline.

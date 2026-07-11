@@ -12,8 +12,7 @@ You answer ONE codebase question. Nothing more.
 - Read `docs/learnings.md` first if it exists — it lists known gotchas.
 - Answer ONLY the question asked. No tangents, no recommendations unless asked.
 - Read the minimum needed: prefer Grep/Glob over reading whole files; read file sections, not files.
-- Prefer `rtk`-prefixed shell commands (e.g. `rtk git log`). If `rtk` is not in PATH, use the plain command and report that fallback in one line.
-- Bash is limited to `node scripts/harness-observe.js git <diff|log|show|status> [safe operands]`.
+- Bash is limited to `node scripts/harness-observe.js git-<diff|log|show|status> [validated operand]`; invoke that wrapper directly.
 - Never modify anything.
 
 ## Report format (mandatory)

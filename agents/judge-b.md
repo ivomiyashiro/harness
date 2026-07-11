@@ -12,10 +12,10 @@ Decorrelation rule: review the diff BOTTOM-UP — start from the last file/hunk 
 ## Inputs (exactly these)
 
 1. The spec (`docs/specs/<feature>.md`)
-2. The diff — obtain it yourself: `rtk git diff <range given in your prompt>`; if `rtk` is unavailable, use plain `git diff` and note the fallback.
+2. The diff — obtain it with `node scripts/harness-observe.js git-diff <range given in your prompt>`.
 3. `docs/conventions.md` (local project contract; may be sparse)
 
-Bash is limited to `node scripts/harness-observe.js git <diff|status> [safe operands]`.
+Bash is limited to `node scripts/harness-observe.js git-<diff|status|log|show> [validated operand]`.
 
 ## Forbidden inputs
 

@@ -53,7 +53,9 @@ export async function runParallelTasks({ repo, tasks, runTask, createWorktree = 
     for (const worktree of worktrees) {
       await runChild('git', ['worktree', 'remove', '--force', worktree], { cwd: repo }).catch(() => {});
     }
-    throw new Error(`task worktree isolation failed: ${error.message}`, { cause: error });
+    const results = [];
+    for (const task of tasks) results.push(await runTask(task, repo));
+    return { mode: 'sequential-fallback', results, worktrees: tasks.map(() => repo), isolationError: error.message };
   }
 
   const results = await Promise.all(tasks.map((task, index) => runTask(task, worktrees[index])));
@@ -64,6 +66,7 @@ export async function executeParallelTasks({ repo, tasks, runTask, statePath, cr
   if (!statePath) throw new Error('integration state path is required');
   const base = (await runChild('git', ['rev-parse', 'HEAD'], { cwd: repo })).stdout.trim();
   const execution = await runParallelTasks({ repo, tasks, runTask, createWorktree });
+  if (execution.mode === 'sequential-fallback') return { ...execution, commits: [], integration: null };
   const commits = [];
   for (const worktree of execution.worktrees) {
     const commit = (await runChild('git', ['rev-parse', 'HEAD'], { cwd: worktree })).stdout.trim();
@@ -108,4 +111,42 @@ export async function integrateTaskCommits({ repo, commits, statePath }) {
     await saveState(statePath, state);
   }
   return state;
+}
+
+function parseCliArgs(args) {
+  const [operation, ...rest] = args;
+  const values = { tasks: [], commits: [] };
+  for (let index = 0; index < rest.length; index += 2) {
+    const flag = rest[index];
+    const value = rest[index + 1];
+    if (!value || !['--repo', '--state', '--task', '--commit'].includes(flag)) throw new Error('invalid worktree arguments');
+    if (flag === '--task') values.tasks.push(value);
+    else if (flag === '--commit') values.commits.push(value);
+    else values[flag.slice(2)] = value;
+  }
+  if (!values.repo || !values.state) throw new Error('repo and state are required');
+  return { operation, ...values };
+}
+
+export async function worktreeEntrypoint(args, { createWorktree = defaultCreateWorktree } = {}) {
+  const options = parseCliArgs(args);
+  if (options.operation === 'prepare') {
+    return runParallelTasks({
+      repo: options.repo,
+      tasks: options.tasks,
+      createWorktree,
+      runTask: async (task, worktree) => ({ task, worktree }),
+    });
+  }
+  if (options.operation === 'integrate') {
+    return integrateTaskCommits({ repo: options.repo, commits: options.commits, statePath: options.state });
+  }
+  throw new Error('operation must be prepare or integrate');
+}
+
+if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
+  worktreeEntrypoint(process.argv.slice(2)).then(
+    (result) => process.stdout.write(`${JSON.stringify(result)}\n`),
+    (error) => { process.stderr.write(`${error.message}\n`); process.exitCode = 1; },
+  );
 }

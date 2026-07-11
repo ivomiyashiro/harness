@@ -55,11 +55,14 @@ test("AC-10 observation wrapper fixes operations and rejects arguments and shell
     ["node-test", ["--test-reporter-destination=/tmp/stolen"]],
   ]) assert.throws(() => observeCommand(args[0], args[1]), /unsafe/)
 
-  for (const value of ["test/fixture.test.js", "../outside.test.js", "|touch", "| touch", ">out", "> out"]) {
+  for (const value of ["../outside.test.js", "|touch", "| touch", ">out", "> out"]) {
     assert.throws(() => observeCommand("node-test", [value]), /unsafe/)
   }
   assert.deepEqual(observeCommand("git-diff", []), ["git", ["diff", "--", "."]])
+  assert.deepEqual(observeCommand("git-diff", ["base..head"]), ["git", ["diff", "base..head", "--", "."]])
+  assert.deepEqual(observeCommand("git-show", ["HEAD~1"]), ["git", ["show", "--stat", "HEAD~1"]])
   assert.deepEqual(observeCommand("node-test", []), ["node", ["--test"]])
+  assert.deepEqual(observeCommand("node-test", ["scripts/example.test.js"]), ["node", ["--test", "scripts/example.test.js"]])
 })
 
 test("command templates never interpolate raw arguments into shell text", async () => {
