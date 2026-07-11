@@ -40,7 +40,20 @@ function merge(base, override) {
   return result
 }
 
+const TOKEN_BEHAVIOR_FIELD = /token|budget|analysis/i
+
+function rejectTokenBehaviorFields(value, location = "state") {
+  if (!value || typeof value !== "object") return
+  for (const [key, nested] of Object.entries(value)) {
+    if (TOKEN_BEHAVIOR_FIELD.test(key)) {
+      throw new Error(`unsupported token behavior field: ${location}.${key}`)
+    }
+    rejectTokenBehaviorFields(nested, `${location}.${key}`)
+  }
+}
+
 export function canonicalState(input = {}) {
+  rejectTokenBehaviorFields(input)
   return merge(defaults, input)
 }
 
@@ -53,12 +66,18 @@ function parseValue(value) {
 
 export function loadState(input) {
   const parsed = {}
+  const seen = new Set()
   for (const line of String(input).split(/\r?\n/)) {
     const separator = line.indexOf(":")
     if (separator === -1) continue
     const key = line.slice(0, separator).trim()
     const value = line.slice(separator + 1).trim()
     if (!key) continue
+    if (seen.has(key)) throw new Error(`ambiguous duplicate field: ${key}`)
+    if (["approvals", "gates", "preservedApprovals"].includes(key)) {
+      throw new Error(`unsafe legacy field: ${key}`)
+    }
+    seen.add(key)
     parsed[key] = parseValue(value)
   }
   return canonicalState({ ...parsed, version: STATE_VERSION, approvals: {}, gates: {} })

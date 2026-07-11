@@ -125,6 +125,10 @@ defaults: `approvals: none`, `checkpoints` set to pending values derived from th
 current phase, `revision: 0`, and `visual: not-required` unless an approved plan
 with UI work requires visual review. No approval is inferred from old state or
 from the resume message. The next successful transition writes `state_version: 1`.
+Duplicate fields and legacy authority-bearing fields such as `approvals` are
+rejected as ambiguous instead of being normalized. State and configuration
+reject token telemetry, token budget, and analysis fields; Harness state does
+not define or infer token behavior.
 
 ## 2. Spec
 

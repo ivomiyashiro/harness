@@ -314,12 +314,37 @@ next: implement
   assert.deepEqual(loaded.gates, {})
 })
 
-test("AC-13 no token fields", () => {
+test("AC-13 preserves safe legacy values and rejects ambiguous authority", () => {
+  const loaded = loadState(`feature: legacy-feature
+mode: lite
+phase: implement
+branch: feat/legacy-feature
+worktree: /tmp/legacy-feature
+revision: 7
+next: judge
+`)
+
+  assert.equal(loaded.feature, "legacy-feature")
+  assert.equal(loaded.mode, "lite")
+  assert.equal(loaded.phase, "implement")
+  assert.equal(loaded.branch, "feat/legacy-feature")
+  assert.equal(loaded.worktree, "/tmp/legacy-feature")
+  assert.equal(loaded.revision, 7)
+  assert.equal(loaded.next, "judge")
+  assert.throws(() => loadState("mode: full\nmode: lite\n"), /ambiguous duplicate field: mode/)
+  assert.throws(() => loadState("approvals: plan approved\n"), /unsafe legacy field: approvals/)
+})
+
+test("AC-14 state and configuration reject token behavior fields", () => {
   const text = JSON.stringify(canonicalState())
 
   assert.doesNotMatch(text, /token/i)
   assert.doesNotMatch(text, /budget/i)
   assert.doesNotMatch(text, /analysis/i)
+  for (const field of ["tokenTelemetry", "token_budget", "analysis"]) {
+    assert.throws(() => canonicalState({ [field]: true }), /unsupported token behavior field/)
+    assert.throws(() => loadState(`${field}: true`), /unsupported token behavior field/)
+  }
 })
 
 test("AC-2 skill gates require explicit approval evidence", () => {
