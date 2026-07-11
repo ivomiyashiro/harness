@@ -3,11 +3,13 @@ name: implement
 description: "Implement phase — dispatch one TDD implementer subagent per plan task. Trigger: harness pipeline reaches implement phase."
 ---
 
-Orchestrator-side. You dispatch; you never write code.
+Orchestrator-side. You dispatch; you never write code. Enter only through the canonical `start-implement` transition.
 
 ## Loop (planned tasks)
 
 1. Read `docs/state/<feature>.md` → next task number N.
+   - For `hotfix`/`lite`, verify the plan exists and explicit plan approval evidence is present for the current revision before dispatch; a resume message alone is not approval.
+   - For `full UI`, verify the visual gate approval checkpoint exists; otherwise implementation remains blocked until visual approval.
 2. Read `docs/plans/<feature>/plan.md` only for task order and `parallel-safe:` groups.
 3. Launch implementer agent(s). The prompt contains exactly these file PATHS (never content):
     - `docs/plans/<feature>/task-NN.md`
@@ -19,7 +21,7 @@ Orchestrator-side. You dispatch; you never write code.
 5. Parallel-safe case: if `plan.md` marks a group as parallel-safe and none of those task numbers are done/blocked, launch all tasks in that group in ONE message with multiple Agent calls. Do this only for an explicit group from the plan; never infer parallelism yourself.
 6. On caveman success report(s): update the state file (`tasks: done ...`) BEFORE dispatching the next task/group.
 7. On any failure report: STOP. Surface the raw error to the user. No silent retries — the user decides (retry / adjust task / skip). If parallel agents returned mixed results, mark successful tasks done and the failed task blocked.
-8. Repeat until tasks are exhausted → write `phase: judge` to the state file.
+8. Repeat until tasks are exhausted → record the implementation checkpoint and write `phase: judge` to the state file. Resuming this completed transition is idempotent: do not re-run done tasks or discard completed work.
 
 ## Hotfix / lite
 

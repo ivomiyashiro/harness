@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import test from "node:test"
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 
 import {
   canonicalState,
@@ -8,6 +9,8 @@ import {
   loadState,
   transition,
 } from "./harness-state.js"
+
+const skill = (name) => readFileSync(new URL(`../skills/${name}/SKILL.md`, import.meta.url), "utf8")
 
 test("AC-1 transition accept/reject with unmet rule", () => {
   const state = canonicalState({ mode: "full", phase: "plan" })
@@ -184,4 +187,37 @@ test("AC-13 no token fields", () => {
   assert.doesNotMatch(text, /token/i)
   assert.doesNotMatch(text, /budget/i)
   assert.doesNotMatch(text, /analysis/i)
+})
+
+test("AC-2 skill gates require explicit approval evidence", () => {
+  const docs = [skill("write-plan"), skill("visual-mock"), skill("verify")].join("\n")
+
+  assert.match(docs, /approval evidence tied to the gate and state revision/i)
+  assert.match(docs, /current resume message is not approval evidence/i)
+})
+
+test("AC-3 and AC-10 skills checkpoint resumable transitions and finalization", () => {
+  const docs = [skill("write-plan"), skill("visual-mock"), skill("implement"), skill("verify"), skill("iterate")].join("\n")
+
+  assert.match(docs, /checkpoint/i)
+  assert.match(docs, /idempotent/i)
+  assert.match(docs, /commit, registry, and cleanup checkpoints/i)
+  assert.match(docs, /resume from the first incomplete checkpoint/i)
+})
+
+test("AC-4 AC-5 AC-6 skills route plan completion through canonical gates", () => {
+  const docs = [skill("write-plan"), skill("visual-mock"), skill("implement")].join("\n")
+
+  assert.match(docs, /full UI.*complete-plan.*phase: visual/is)
+  assert.match(docs, /full non-UI.*complete-plan.*phase: implement/is)
+  assert.match(docs, /hotfix.*lite.*plan approval.*start-implement/is)
+  assert.match(docs, /implementation remains blocked until visual approval/i)
+})
+
+test("AC-7 iteration skill invalidates only affected downstream state", () => {
+  const docs = skill("iterate")
+
+  assert.match(docs, /reset affected downstream/i)
+  assert.match(docs, /tasks, judge results, verification results, and manual checklist/i)
+  assert.match(docs, /preserve unaffected upstream approvals/i)
 })

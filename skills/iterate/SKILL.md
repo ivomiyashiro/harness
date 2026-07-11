@@ -3,7 +3,7 @@ name: iterate
 description: "Iterate phase — route user feedback to the phase that owns the defect, or finish the feature. Trigger: harness pipeline reaches iterate phase or user gives post-implementation feedback."
 ---
 
-Orchestrator-side. Feedback goes to the phase that OWNS the defect — not blindly to implement.
+Orchestrator-side. Feedback goes to the phase that OWNS the defect — not blindly to implement. Every route follows the canonical transition contract.
 
 ## Routing table
 
@@ -16,10 +16,14 @@ Orchestrator-side. Feedback goes to the phase that OWNS the defect — not blind
 
 Ask the user ONE clarifying question only when the routing is genuinely ambiguous. Always write the state file (`phase: <target>`) BEFORE re-entering the phase.
 
+## Invalidation
+
+On any route back, reset affected downstream state only: tasks, judge results, verification results, and manual checklist entries. Preserve unaffected upstream approvals and their approval evidence. Examples: spec/plan changes reset affected tasks and all later judge/verification/checklist state; implement bugs reset only the fix task scope and later judge/verification/checklist state; visual changes reset the mock-derived UI tasks and later state.
+
 ## Finish (all gates passed: judges clean, runtime smoke passed, manual checklist OK when present)
 
-1. State file → `phase: done`.
-2. Final commit on the feature branch (`rtk git add`, `rtk git commit`) if anything is pending.
-3. Remove the feature's line from `docs/state/_active.md` on main and commit there.
-4. Run `/harness:doctor --fix` or `node <harness>/scripts/harness-doctor.js --fix` before final reporting. If it changes `_active.md`, include that in the final commit/update.
+1. Final commit on the feature branch (`rtk git add`, `rtk git commit`) if anything is pending; record the commit checkpoint.
+2. Remove the feature's line from `docs/state/_active.md` on main and commit there; record the registry checkpoint.
+3. Run `/harness:doctor --fix` or `node <harness>/scripts/harness-doctor.js --fix` before final reporting. If it changes `_active.md`, include that in the final commit/update; record the cleanup checkpoint.
+4. Only after verification passed and the commit, registry, and cleanup checkpoints succeed, write `phase: done`. If any checkpoint is incomplete, keep the finalization phase and resume from the first incomplete checkpoint.
 5. Tell the user: branch ready for their next directed step. Do not create or recommend PRs unless the user explicitly asks.
