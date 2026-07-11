@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { spawn, spawnSync } from "node:child_process"
-import { runParallelTasks, worktreeEntrypoint } from "./harness-worktrees.js"
+import { executeParallelTasks, runParallelTasks, worktreeEntrypoint } from "./harness-worktrees.js"
 
 function git(cwd, ...args) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8" })
@@ -114,4 +114,26 @@ test("AC-5 creates task worktrees from a linked feature worktree", async () => {
   assert.equal(new Set(seen).size, 2)
   assert.equal(git(feature, "rev-parse", "--is-inside-work-tree"), "true")
   for (const worktree of seen) assert.equal(git(worktree, "rev-parse", "--is-inside-work-tree"), "true")
+})
+
+test("AC-6 integration state checkpoints successful sibling commits when a parallel task fails", async () => {
+  const root = mkdtempSync(join(tmpdir(), "harness-partial-failure-"))
+  git(root, "init", "-b", "feature/failure")
+  git(root, "config", "user.name", "Harness Test")
+  git(root, "config", "user.email", "harness@example.test")
+  git(root, "commit", "--allow-empty", "-m", "base")
+  const statePath = join(root, "integration.json")
+  await assert.rejects(executeParallelTasks({
+    repo: root,
+    tasks: ["good", "bad"],
+    statePath,
+    runTask: async (task, worktree) => {
+      if (task === "bad") throw new Error("task failed")
+      await commitTask(worktree, "good.txt")
+    },
+  }), /successful sibling commit.*checkpointed/)
+  const state = JSON.parse(readFileSync(statePath, "utf8"))
+  assert.equal(state.pendingCommits.length, 1)
+  assert.equal(git(root, "cat-file", "-t", state.pendingCommits[0]), "commit")
+  assert.equal(git(root, "rev-parse", "HEAD^{tree}"), git(root, "rev-parse", "HEAD^{tree}"))
 })

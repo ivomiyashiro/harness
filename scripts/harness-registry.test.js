@@ -19,6 +19,28 @@ test("resolves and uses a non-main remote default branch", async () => {
   assert.deepEqual(calls, [["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"]]);
 });
 
+test("FR-6 resolved non-main branch selects the registry worktree actually written", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "registry-branch-"));
+  const feature = path.join(directory, "feature");
+  const trunk = path.join(directory, "trunk");
+  await Promise.all([writeFile(path.join(directory, "feature-active"), "feature\n"), writeFile(path.join(directory, "trunk-active"), "trunk\n")]);
+  const git = async (args) => {
+    if (args[0] === "symbolic-ref") return "origin/trunk\n";
+    if (args[0] === "rev-parse") return `${feature}\n`;
+    if (args[0] === "worktree") return `worktree ${feature}\nbranch refs/heads/feature\n\nworktree ${trunk}\nbranch refs/heads/trunk\n`;
+    throw new Error("unexpected git call");
+  };
+  const registryPath = path.join(feature, "docs/state/_active.md");
+  await import("node:fs/promises").then(({ mkdir }) => Promise.all([
+    mkdir(path.dirname(registryPath), { recursive: true }),
+    mkdir(path.join(trunk, "docs/state"), { recursive: true }),
+  ]));
+  await Promise.all([writeFile(registryPath, "feature\n"), writeFile(path.join(trunk, "docs/state/_active.md"), "trunk\n")]);
+  await updateRegistry({ registryPath, content: "updated\n", git });
+  assert.equal(await readFile(registryPath, "utf8"), "feature\n");
+  assert.equal(await readFile(path.join(trunk, "docs/state/_active.md"), "utf8"), "updated\n");
+});
+
 test("ambiguous default branch fails before registry writes", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "registry-"));
   const registryPath = path.join(directory, "_active.md");

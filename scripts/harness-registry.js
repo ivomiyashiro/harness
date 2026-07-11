@@ -1,21 +1,25 @@
 import { createHash, randomUUID } from "node:crypto";
 import { open, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { spawn } from "node:child_process";
+import path from "node:path";
+import { runHarnessProcess } from "./harness-process.js";
 
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 async function runGit(args) {
-  return new Promise((resolve, reject) => {
-    const child = spawn("git", args, { stdio: ["ignore", "pipe", "pipe"] });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => { stdout += chunk; });
-    child.stderr.on("data", (chunk) => { stderr += chunk; });
-    child.on("error", reject);
-    child.on("close", (code) => code === 0
-      ? resolve(stdout)
-      : reject(new Error(stderr.trim() || `git exited with status ${code}`)));
-  });
+  return (await runHarnessProcess("git", args)).stdout;
+}
+
+async function registryPathOnBranch(registryPath, branch, git) {
+  const root = (await git(["rev-parse", "--show-toplevel"])).trim();
+  const relative = path.relative(root, registryPath);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) throw new Error("Registry path is outside repository");
+  const lines = (await git(["worktree", "list", "--porcelain"])).split(/\r?\n/);
+  let worktree;
+  for (let index = 0; index < lines.length; index++) {
+    if (lines[index] === `branch refs/heads/${branch}`) worktree = lines[index - 1]?.replace(/^worktree /, "");
+  }
+  if (!worktree) throw new Error(`Default branch ${branch} has no checked-out worktree`);
+  return path.join(worktree, relative);
 }
 
 export async function resolveDefaultBranch({ git = runGit } = {}) {
@@ -90,14 +94,16 @@ export async function updateRegistry({
   git,
   lockTimeoutMs = 5000,
 }) {
-  const branch = defaultBranch ?? await resolveDefaultBranch({ git });
-  const lockPath = `${registryPath}.lock`;
+  const gitRunner = git ?? runGit;
+  const branch = defaultBranch ?? await resolveDefaultBranch({ git: gitRunner });
+  const targetPath = defaultBranch ? registryPath : await registryPathOnBranch(registryPath, branch, gitRunner);
+  const lockPath = `${targetPath}.lock`;
   const lock = await acquireLock(lockPath, lockTimeoutMs);
-  const temporaryPath = `${registryPath}.${process.pid}.${randomUUID()}.tmp`;
+  const temporaryPath = `${targetPath}.${process.pid}.${randomUUID()}.tmp`;
   try {
     let current;
     try {
-      current = await readFile(registryPath, "utf8");
+      current = await readFile(targetPath, "utf8");
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
       current = "";
@@ -109,7 +115,7 @@ export async function updateRegistry({
     const next = transform ? await transform(current) : content;
     if (typeof next !== "string") throw new TypeError("Registry update must produce string content");
     await writeFile(temporaryPath, next, { flag: "wx" });
-    await rename(temporaryPath, registryPath);
+    await rename(temporaryPath, targetPath);
     return { status: "updated", branch, revision: registryRevision(next) };
   } finally {
     await rm(temporaryPath, { force: true });

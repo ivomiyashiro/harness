@@ -1,5 +1,8 @@
 import test from "node:test"
 import assert from "node:assert/strict"
+import { mkdtempSync, symlinkSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 
 import HarnessPlugin from "./index.js"
 import { observeCommand } from "./scripts/harness-observe.js"
@@ -62,7 +65,18 @@ test("AC-10 observation wrapper fixes operations and rejects arguments and shell
   assert.deepEqual(observeCommand("git-diff", ["base..head"]), ["git", ["diff", "base..head", "--", "."]])
   assert.deepEqual(observeCommand("git-show", ["HEAD~1"]), ["git", ["show", "--stat", "HEAD~1"]])
   assert.deepEqual(observeCommand("node-test", []), ["node", ["--test"]])
-  assert.deepEqual(observeCommand("node-test", ["scripts/example.test.js"]), ["node", ["--test", "scripts/example.test.js"]])
+  assert.deepEqual(observeCommand("node-test", ["index.test.js"]), ["node", ["--test", "index.test.js"]])
+})
+
+test("AC-10 node-test accepts only canonical real test files inside the worktree", () => {
+  const boundary = mkdtempSync(join(tmpdir(), "observe-boundary-"))
+  const outside = join(mkdtempSync(join(tmpdir(), "observe-outside-")), "outside.test.js")
+  writeFileSync(outside, "")
+  const link = join(boundary, "linked.test.js")
+  symlinkSync(outside, link)
+  for (const value of [outside, "linked.test.js", "missing.test.js", "example.js"]) {
+    assert.throws(() => observeCommand("node-test", [value], boundary), /unsafe/)
+  }
 })
 
 test("command templates never interpolate raw arguments into shell text", async () => {

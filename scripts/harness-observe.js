@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-import { spawn } from "node:child_process"
+import { lstatSync, realpathSync } from "node:fs"
+import path from "node:path"
+import { runHarnessProcess } from "./harness-process.js"
 
 const [profile, ...args] = process.argv.slice(2)
 const fixedProfiles = new Map([
@@ -18,18 +20,35 @@ function safeOperands(values) {
   return values.every((value) => value.length > 0 && !value.startsWith("-") && !value.split("/").includes("..") && /^[A-Za-z0-9_./~^]+$/.test(value))
 }
 
-export function observeCommand(selectedProfile, values) {
+function safeNodeTests(values, boundary = process.cwd()) {
+  const root = realpathSync(boundary)
+  return values.every((value) => {
+    if (path.isAbsolute(value) || !/\.(?:test|spec)\.[cm]?[jt]s$/.test(value)) return false
+    const resolved = path.resolve(root, value)
+    if (path.relative(root, resolved).startsWith("..") || path.relative(root, resolved) === "") return false
+    try {
+      return !lstatSync(resolved).isSymbolicLink() && realpathSync(resolved) === resolved
+    } catch {
+      return false
+    }
+  })
+}
+
+export function observeCommand(selectedProfile, values, boundary = process.cwd()) {
   const fixed = fixedProfiles.get(selectedProfile)
-  if (!fixed || values.length > fixed.max || !safeOperands(values)) throw new Error("unsafe observation arguments")
+  if (!fixed || values.length > fixed.max || !safeOperands(values) || (selectedProfile === "node-test" && !safeNodeTests(values, boundary))) throw new Error("unsafe observation arguments")
   return [fixed.command, [...fixed.args, ...values, ...(fixed.suffix ?? [])]]
 }
 
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
   try {
     const [command, commandArgs] = observeCommand(profile, args)
-    const child = spawn(command, commandArgs, { stdio: "inherit" })
-    child.on("error", (error) => { console.error(error.message); process.exitCode = 1 })
-    child.on("close", (code) => { process.exitCode = code ?? 1 })
+    runHarnessProcess(command, commandArgs, {
+      operation(result) {
+        process.stdout.write(result.stdout)
+        process.stderr.write(result.stderr)
+      },
+    }).catch((error) => { console.error(error.message); process.exitCode = 1 })
   } catch (error) {
     console.error(error.message)
     process.exitCode = 2

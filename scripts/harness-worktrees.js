@@ -65,13 +65,32 @@ export async function runParallelTasks({ repo, tasks, runTask, createWorktree = 
 export async function executeParallelTasks({ repo, tasks, runTask, statePath, createWorktree = defaultCreateWorktree }) {
   if (!statePath) throw new Error('integration state path is required');
   const base = (await runChild('git', ['rev-parse', 'HEAD'], { cwd: repo })).stdout.trim();
-  const execution = await runParallelTasks({ repo, tasks, runTask, createWorktree });
+  const execution = await runParallelTasks({
+    repo,
+    tasks,
+    createWorktree,
+    runTask: async (...args) => {
+      try { return { status: 'fulfilled', value: await runTask(...args) }; }
+      catch (reason) { return { status: 'rejected', reason }; }
+    },
+  });
   if (execution.mode === 'sequential-fallback') return { ...execution, commits: [], integration: null };
   const commits = [];
-  for (const worktree of execution.worktrees) {
+  for (let index = 0; index < execution.worktrees.length; index++) {
+    if (execution.results[index].status === 'rejected') continue;
+    const worktree = execution.worktrees[index];
     const commit = (await runChild('git', ['rev-parse', 'HEAD'], { cwd: worktree })).stdout.trim();
     if (commit === base) throw new Error(`task completed without a commit: ${worktree}`);
     commits.push(commit);
+  }
+  const failures = execution.results.filter((result) => result.status === 'rejected');
+  if (failures.length) {
+    const state = await loadState(statePath);
+    state.pendingCommits = [...new Set([...(state.pendingCommits ?? []), ...commits])];
+    await saveState(statePath, state);
+    const error = new Error(`parallel task failure; ${commits.length} successful sibling commit(s) checkpointed for integration`);
+    error.cause = failures[0].reason;
+    throw error;
   }
   const integration = await integrateTaskCommits({ repo, commits, statePath });
   return { ...execution, commits, integration };
