@@ -3,7 +3,7 @@ name: visual-mock
 description: "Visual phase — isolated mock iteration in the target stack with a hard approval gate. Trigger: harness full pipeline reaches a feature with UI."
 ---
 
-Orchestrator-side. Runs after plan approval, BEFORE implement, for features with UI.
+Orchestrator-side. Runs after planning, BEFORE implement, for full-mode features with UI. Plan approval is not a full-mode gate; visual approval is.
 
 ## Stack detection
 

@@ -16,9 +16,10 @@ Orchestrator-side. Feedback goes to the phase that OWNS the defect — not blind
 
 Ask the user ONE clarifying question only when the routing is genuinely ambiguous. Always write the state file (`phase: <target>`) BEFORE re-entering the phase.
 
-## Finish (all gates passed: judges clean, checklist OK)
+## Finish (all gates passed: judges clean, runtime smoke passed, manual checklist OK when present)
 
 1. State file → `phase: done`.
 2. Final commit on the feature branch (`rtk git add`, `rtk git commit`) if anything is pending.
 3. Remove the feature's line from `docs/state/_active.md` on main and commit there.
-4. Tell the user: branch ready for their next directed step. Do not create or recommend PRs unless the user explicitly asks.
+4. Run `/harness:doctor --fix` or `node <harness>/scripts/harness-doctor.js --fix` before final reporting. If it changes `_active.md`, include that in the final commit/update.
+5. Tell the user: branch ready for their next directed step. Do not create or recommend PRs unless the user explicitly asks.

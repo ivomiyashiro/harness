@@ -1,6 +1,6 @@
 {
   "name": "harness",
-  "description": "Token-economic multi-agent development pipeline: brainstorm, spec, plan, implement (TDD), judge, manual test, iterate.",
+  "description": "Token-economic multi-agent development pipeline: brainstorm, spec, plan, implement (TDD), judge, runtime verify, iterate.",
   "owner": {
     "name": "Ivan Miyashiro",
     "url": "https://github.com/ivomiyashiro"
@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "harness",
-      "description": "Token-economic multi-agent development pipeline: brainstorm, spec, plan, implement (TDD), judge, manual test, iterate.",
+      "description": "Token-economic multi-agent development pipeline: brainstorm, spec, plan, implement (TDD), judge, runtime verify, iterate.",
       "source": "./",
       "version": "0.2.1",
       "category": "development-tools",

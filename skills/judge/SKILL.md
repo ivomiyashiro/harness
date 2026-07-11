@@ -15,7 +15,7 @@ Orchestrator-side. Judges catch SPEC drift, 4R drift (Risk, Readability, Reliabi
 | --- | --- |
 | Finding reported by BOTH (same issue, any wording) | → fixer queue, dispatched AUTOMATICALLY (no approval gate) |
 | Finding reported by ONE only | → AUTO-DISMISS + log one caveman line to `docs/learnings.md`. NEVER surface to the user as a decision |
-| Both `verdict: clean` | → write `phase: manual-test`, done |
+| Both `verdict: clean` | → write `phase: verify`, done |
 
 4. Auto-dispatch `fixer` with the both-confirmed list. Pass the CURRENT spec path explicitly (same source-of-truth re-read as the judges). One fixer, one commit.
 5. RE-JUDGE only the fixer's commit (`rtk git diff <fix-commit>^..<fix-commit>`) — both judges again, same inputs incl. the current spec path, same rules. Cap at 2 re-judge cycles: if findings still do not converge to clean after 2 cycles, STOP and surface the unresolved findings to the user as a FAILURE (not a fix/dismiss decision).
@@ -25,7 +25,15 @@ Orchestrator-side. Judges catch SPEC drift, 4R drift (Risk, Readability, Reliabi
 
 ## Lite mode
 
-Single judge (`judge-a`), same inputs incl. the current spec path. No confirmation pair exists, so there is no both-confirmed set: findings from a single cycle are AUTO-DISMISSED + logged to `docs/learnings.md`, never surfaced as a user decision. Same amended-AC guard applies. However, the 2-cycle re-judge cap works differently here: if the same finding persists across both re-judge cycles (i.e. the judge still reports it after 2 attempts), it is NOT auto-dismissed — it SURFACES to the human as a FAILURE (category-3 gate). Auto-dismiss applies only within the cap, not after it is exhausted.
+Single judge (`judge-a`), same inputs incl. the current spec path. Because there is no confirmation pair, use severity instead of auto-dismissing everything:
+
+| Single-judge outcome | Action |
+| --- | --- |
+| `blocking` finding | → fixer queue, dispatched AUTOMATICALLY (no approval gate), then re-judge the fixer commit |
+| `warning` finding only | → AUTO-DISMISS + log one caveman line to `docs/learnings.md`; never surface as a user decision |
+| `verdict: clean` | → write `phase: verify`, done |
+
+Same amended-AC guard applies. Cap at 2 re-judge cycles. If the same blocking finding persists after 2 attempts, SURFACE to the human as a FAILURE (category-3 gate). Auto-dismiss applies only to warnings, not blocking findings.
 
 ## Drift memory
 

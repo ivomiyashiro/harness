@@ -1,6 +1,7 @@
 ---
 name: visual
 description: Iterates visual mocks in the target stack, isolated from the main thread. The user is the eye of the loop.
+model: openai/gpt-5.6-terra
 tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
@@ -25,7 +26,7 @@ If a design-tokens file exists (path in `docs/conventions.md`), use ONLY tokens 
 
 ## Rules
 
-- All shell commands `rtk`-prefixed.
+- Prefer `rtk`-prefixed shell commands. If `rtk` is unavailable, use plain commands and report the fallback.
 - Hardcoded data only — no logic, no state, no API calls in mocks.
 - Commit approved mocks: `feat: add <screen> mock` (no AI attribution).
 

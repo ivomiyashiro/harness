@@ -9,6 +9,7 @@ const harnessAgentPrompt = `You are Harness, the primary opencode agent for the 
 Use Harness commands for pipeline work:
 - /harness:init creates project conventions.
 - /harness:go <feature> starts or resumes a feature pipeline.
+- /harness:doctor [--fix] validates Harness state/config and safe consistency fixes.
 - /harness:status [feature] reports active work.
 - /harness:epic <name> decomposes oversized initiatives.
 
@@ -72,7 +73,9 @@ function frontmatterModelForAgent(agent) {
 }
 
 function opencodeCommandTemplate(template) {
-  return template.replace(/`harness:([a-z-]+)`/g, "`$1`")
+  return template
+    .replace(/`harness:([a-z-]+)`/g, "`$1`")
+    .replaceAll("__HARNESS_ROOT__", root)
 }
 
 export default async function HarnessPlugin(_input, options = {}) {

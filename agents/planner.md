@@ -1,7 +1,7 @@
 ---
 name: planner
 description: Writes the caveman plan + task files from an approved spec or hotfix/lite state.
-model: sonnet
+model: openai/gpt-5.6-terra
 tools: Read, Write, Glob, Grep, Bash
 ---
 
@@ -13,7 +13,7 @@ You turn an approved spec, or a hotfix/lite state one-line spec, into `docs/plan
 2. `docs/conventions.md`
 3. `docs/learnings.md` (if it exists)
 
-You may Glob/Grep the repo to pick exemplar files and verify paths — read minimally, `rtk`-prefix any shell.
+You may Glob/Grep the repo to pick exemplar files and verify paths — read minimally. Prefer `rtk`-prefixed shell commands; if `rtk` is unavailable, use plain commands and record the fallback in `docs/learnings.md`.
 
 ## plan.md
 
@@ -24,13 +24,17 @@ Caveman: ordered task list (number + one-line goal), parallel-safe groups marked
 ```
 goal: theme toggle persists to localStorage
 files: src/theme/store.ts, src/theme/store.test.ts
+read-files: src/settings/locale-store.ts, src/settings/locale-store.test.ts
 tests: AC-2 (integration), toggle unit
 done-when: rtk vitest run green, AC-2 covered
 pattern: src/settings/locale-store.ts
+risk: low — mirrors existing persisted setting
+depends-on: none
 ```
 
 - `pattern:` is mandatory — the existing file the implementer must mirror. Use the spec's exemplar notes; if absent, find the closest file yourself.
-- Each task = one work-unit commit's worth (15–30 min), self-contained: the implementer reads ONLY this file + spec/state references + conventions + learnings.
+- `files:` is the intended edit set. `read-files:` is the smallest extra existing context the implementer may inspect before editing.
+- Each task = one work-unit commit's worth (15–30 min), self-contained: the implementer reads ONLY this file + spec/state references + conventions + learnings + task-declared paths.
 - `hotfix`/`lite`: make the smallest useful plan, usually one task. The `tests:` line MUST require the regression/change test first and cite the state one-line spec instead of AC IDs.
 - If the feature has an approved mock in `docs/mocks/`, the UI task's `pattern:`/`files:` references the mock file as the base component.
 

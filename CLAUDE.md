@@ -20,6 +20,10 @@ The orchestrator (main thread) dialogues and dispatches. It reads ONLY state fil
 
 Formats: see plugin `docs/formats.md`.
 
+## Skills and agents
+
+Skills orchestrate pipeline phases: they update state, dispatch agents, and choose the next phase. Agents execute bounded work and return caveman reports; they never own pipeline transitions. For example, `implement` dispatches `implementer`, `judge` dispatches judges/fixer, and `verify` dispatches `verifier`.
+
 ## Caveman reports
 
 Every subagent reports in ≤ 3 lines, no code, no prose. Example:
@@ -29,6 +33,10 @@ task 3: 4 tests green, 2 files, committed abc123
 ```
 
 Failures: report the raw error in one line. No retries without orders.
+
+## Command runner
+
+Prefer `rtk <command>` for shell commands. If `rtk` is not in PATH, run the plain command instead and append one caveman line to `docs/learnings.md` so future agents do not fail for the same environment quirk.
 
 ## Human gates
 

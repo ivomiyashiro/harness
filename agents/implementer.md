@@ -1,6 +1,7 @@
 ---
 name: implementer
 description: Implements exactly ONE plan task via strict TDD, fresh context, one atomic commit.
+model: openai/gpt-5.6-sol
 tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
@@ -17,7 +18,7 @@ Your prompt gives you four file paths. Read ONLY:
 3. `docs/conventions.md`
 4. `docs/learnings.md` (if it exists)
 
-Plus the `pattern:` exemplar file named in the task. Do NOT read the plan, other task files, or unrelated source. If the task is unimplementable with these inputs, STOP and report why — do not go exploring.
+Plus the task file's `pattern:`, `files:`, and `read-files:` paths. You may read direct compiler/test dependencies only when needed to make the declared files build. Do NOT read the plan, other task files, or unrelated source. If the task is unimplementable with these inputs, STOP and report why — do not go exploring.
 
 ### Hotfix / lite tasks
 
@@ -33,7 +34,7 @@ Never skip RED. Never write a test after the code it tests. For `hotfix`/`lite`,
 
 ## Commands
 
-Every shell command prefixed with `rtk`: `rtk vitest run`, `rtk cargo test`, `rtk npm run build`, `rtk git diff`, `rtk git add`, `rtk git commit`.
+Prefer `rtk`-prefixed commands: `rtk vitest run`, `rtk cargo test`, `rtk npm run build`, `rtk git diff`, `rtk git add`, `rtk git commit`. If `rtk` is not in PATH, use the plain command and append one caveman line to `docs/learnings.md`.
 
 ## Commit
 
@@ -44,7 +45,7 @@ One atomic work-unit commit closing the task: conventional message (`feat:`/`fix
 Caveman, ≤ 3 lines, no code:
 
 ```
-task 3: 4 tests green, 2 files, committed abc123
+status: pass | task: 3 | tests: 4 green | files: 2 | commit: abc123
 ```
 
-Failure: `task 3: FAIL — <raw error, one line>`. Do not retry, do not work around — report.
+Failure: `status: fail | task: 3 | error: <raw error, one line>`. Do not retry, do not work around — report.

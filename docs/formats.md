@@ -7,7 +7,7 @@ Path: `docs/state/<feature>.md`
 ```text
 feature: <slug>
 mode: hotfix | lite | full | epic
-phase: brainstorm | spec | plan | visual | implement | judge | manual-test | iterate | done
+phase: brainstorm | spec | plan | visual | implement | judge | verify | iterate | done
 branch: <branch>
 worktree: <path>
 spec: docs/specs/<feature>.md
@@ -16,6 +16,7 @@ tasks: pending 1,2,3 | done 1,2 | blocked <reason>
 globs: <file globs touched by the approved plan, or none>
 judges: not-run | judge-a clean, judge-b clean | confirmed <ids> | fixed <ids>
 checklist: none | <done>/<total> ok, pending <AC ids>
+tokens: optional phase=value pairs (e.g. planner ~8k, impl-1 ~12k)
 next: <one-line next action>
 ```
 
@@ -42,9 +43,12 @@ Path: `docs/plans/<feature>/task-NN.md`
 ```text
 goal: <one work-unit goal>
 files: <comma-separated paths>
+read-files: <comma-separated existing paths the implementer may read before editing>
 tests: <AC ids and test intent>
 done-when: <commands and observable result>
 pattern: <exemplar path to mirror>
+risk: low | medium | high — <one reason>
+depends-on: task numbers or none
 ```
 
 ## 4. Plan
@@ -59,6 +63,9 @@ tasks:
 2. <one-line goal>
 parallel-safe: <task groups or none>
 ```
+
+`globs:` should be broad enough for overlap detection, while each task's
+`files:`/`read-files:` stays precise enough to keep implementer context small.
 
 ## 5. Active Registry
 

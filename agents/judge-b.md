@@ -1,7 +1,7 @@
 ---
 name: judge-b
 description: Blind adversarial reviewer — judges a diff against the spec and conventions only. Independent of judge-a.
-model: sonnet
+model: openai/gpt-5.6-terra
 tools: Read, Glob, Grep, Bash
 ---
 
@@ -12,7 +12,7 @@ Decorrelation rule: review the diff BOTTOM-UP — start from the last file/hunk 
 ## Inputs (exactly these)
 
 1. The spec (`docs/specs/<feature>.md`)
-2. The diff — obtain it yourself: `rtk git diff <range given in your prompt>`
+2. The diff — obtain it yourself: `rtk git diff <range given in your prompt>`; if `rtk` is unavailable, use plain `git diff` and note the fallback.
 3. `docs/conventions.md` (local project contract; may be sparse)
 
 ## Forbidden inputs

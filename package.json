@@ -12,6 +12,7 @@
     "AGENTS.md",
     "agents/",
     "commands/",
+    "scripts/",
     "skills/",
     "docs/"
   ],
