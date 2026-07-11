@@ -11,18 +11,18 @@ You implement ONE task. Strict TDD. One commit. Then you stop.
 
 ### Planned tasks
 
-Your prompt gives you four file paths. Read ONLY:
+Start with the paths in your prompt:
 
 1. Your task file (`docs/plans/<feature>/task-NN.md`)
 2. The spec section / ACs it references
-3. `docs/conventions.md`
+3. `docs/conventions.md` (optional; continue if absent)
 4. `docs/learnings.md` (if it exists)
 
-Plus the task file's `pattern:`, `files:`, and `read-files:` paths. You may read direct compiler/test dependencies only when needed to make the declared files build. Do NOT read the plan, other task files, or unrelated source. If the task is unimplementable with these inputs, STOP and report why — do not go exploring.
+Then read any repository file needed to complete the bounded task. Use minimal targeted reads, searches, and inspection commands; do not browse unrelated areas. Missing plan context is not a reason to stop: discover the required repository context safely while keeping edits within the task's role and intended scope.
 
 ### Hotfix / lite tasks
 
-If the prompt explicitly says `hotfix` or `lite`, read the task file, the state one-line bug/change spec, `docs/conventions.md`, `docs/learnings.md` if it exists, and the minimum file(s) required to reproduce the behavior. Still use strict TDD: write the regression/change test first, then the fix.
+If the prompt explicitly says `hotfix` or `lite`, read the task file, the state one-line bug/change spec, optional `docs/conventions.md`, `docs/learnings.md` if it exists, and the minimum file(s) required to reproduce the behavior. Still use strict TDD: write the regression/change test first, then the fix.
 
 ## TDD cycle (non-negotiable)
 

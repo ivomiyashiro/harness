@@ -149,7 +149,6 @@ Path: `docs/plans/<feature>/task-NN.md`
 ```text
 goal: <one work-unit goal>
 files: <comma-separated paths>
-read-files: <comma-separated existing paths the implementer may read before editing>
 tests: <AC ids and test intent>
 done-when: <commands and observable result>
 pattern: <exemplar path to mirror>
@@ -171,7 +170,8 @@ parallel-safe: <task groups or none>
 ```
 
 `globs:` should be broad enough for overlap detection, while each task's
-`files:`/`read-files:` stays precise enough to keep implementer context small.
+`files:` stays precise about edit responsibility. It is not a read allowlist:
+agents may inspect any repository file needed through minimal targeted reads.
 
 ## 5. Active Registry
 

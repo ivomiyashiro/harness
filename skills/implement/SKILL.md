@@ -15,9 +15,10 @@ Orchestrator-side. You dispatch; you never write code. Enter only through the ca
     - `docs/plans/<feature>/task-NN.md`
     - `full`: the spec path + which AC numbers this task covers
     - `hotfix`/`lite`: the state path + the one-line bug/change spec this task covers
-    - `docs/conventions.md`
+    - `docs/conventions.md` (optional; omit if absent)
     - `docs/learnings.md` (if it exists)
 4. Sequential case: launch ONE implementer for the next task.
+   - Tell the implementer to read any repository file needed, using minimal targeted exploration. Do not stop because a plan omitted useful context; task paths constrain edits, not reads.
 5. Parallel-safe case: if `plan.md` marks a group as parallel-safe and none are done/blocked, invoke `node scripts/harness-worktrees.js prepare --repo <feature-worktree> --state <integration-state> --task <NN> ...`. Use its JSON assignments to launch isolated tasks concurrently. If it returns `sequential-fallback`, launch those assignments one at a time in the feature worktree. After isolated agents commit, invoke `node scripts/harness-worktrees.js integrate --repo <feature-worktree> --state <integration-state> --commit <sha> ...`; this serial integration entrypoint checkpoints conflicts and must never fall back to applying work unsafely. Do this only for an explicit plan group; never infer parallelism.
 6. On caveman success report(s): update the state file (`tasks: done ...`) BEFORE dispatching the next task/group.
 7. On any failure report: STOP. Surface the raw error to the user. No silent retries — the user decides (retry / adjust task / skip). If parallel agents returned mixed results, retain each successful sibling commit in the integration state as pending integration, mark successful tasks done and the failed task blocked; resume integrates those checkpointed commits without rerunning successful tasks.

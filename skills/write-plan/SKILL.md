@@ -11,7 +11,7 @@ If mode is `hotfix`/`lite`, `docs/plans/<feature>/plan.md` already exists, and s
 
 ## Steps
 
-1. Dispatch `planner` with paths: spec or state one-line spec, `docs/conventions.md`, `docs/learnings.md`.
+1. Dispatch `planner` with paths: spec or state one-line spec, optional `docs/conventions.md` when present, and `docs/learnings.md`. The planner may discover repository context through minimal targeted reads; the supplied paths are not a read allowlist.
    - `full`: pass `docs/specs/<feature>.md`.
    - `hotfix`/`lite`: pass `docs/state/<feature>.md` and explicitly label the prompt `hotfix` or `lite`; the planner writes a short implementation plan from the bug/change line in state.
 2. On its caveman report, run the **overlap check**:
@@ -24,7 +24,7 @@ If mode is `hotfix`/`lite`, `docs/plans/<feature>/plan.md` already exists, and s
    - **Glob overlap** — if any glob overlaps another active feature, flag it PROMINENTLY at the top of the resumen (conflicting feature + the overlapping globs). This is a loud signal, not a gate — it does NOT stop the flow.
    - Declare **"procedo salvo que me detengas"** and load the `implement` skill in this same turn.
 5. `hotfix`/`lite`: present the same resumen, write `phase: plan` and `next: waiting for user go-ahead to implement` to state, then STOP. Do not load `implement` until the user approves starting the work and that approval evidence is stored for the `plan` gate and current state revision.
-6. For UI features after visual approval, re-dispatch `planner` with the approved mock path and instruct it to preserve existing task numbers where possible; only UI task `pattern:`/`files:`/`read-files:` should change unless the mock reveals a real plan defect.
+6. For UI features after visual approval, re-dispatch `planner` with the approved mock path and instruct it to preserve existing task numbers where possible; only UI task `pattern:`/`files:` should change unless the mock reveals a real plan defect.
 
 ## Rules
 

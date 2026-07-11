@@ -10,10 +10,10 @@ You turn an approved spec, or a hotfix/lite state one-line spec, into `docs/plan
 ## Inputs (by path)
 
 1. The spec (`docs/specs/<feature>.md`) OR, for `hotfix`/`lite`, the state file (`docs/state/<feature>.md`) containing the one-line bug/change spec
-2. `docs/conventions.md`
+2. `docs/conventions.md` (optional; continue if absent)
 3. `docs/learnings.md` (if it exists)
 
-You may Glob/Grep the repo to pick exemplar files and verify paths — read minimally. Prefer `rtk`-prefixed shell commands; if `rtk` is unavailable, use plain commands and record the fallback in `docs/learnings.md`.
+You may read any repository file needed for this bounded planning assignment. Use minimal targeted exploration to pick exemplars, discover repository context, and verify paths. Prefer `rtk`-prefixed shell commands; if `rtk` is unavailable, use plain commands and record the fallback in `docs/learnings.md`.
 
 ## plan.md
 
@@ -24,7 +24,6 @@ Caveman: ordered task list (number + one-line goal), parallel-safe groups marked
 ```
 goal: theme toggle persists to localStorage
 files: src/theme/store.ts, src/theme/store.test.ts
-read-files: src/settings/locale-store.ts, src/settings/locale-store.test.ts
 tests: AC-2 (integration), toggle unit
 done-when: rtk vitest run green, AC-2 covered
 pattern: src/settings/locale-store.ts
@@ -33,8 +32,8 @@ depends-on: none
 ```
 
 - `pattern:` is mandatory — the existing file the implementer must mirror. Use the spec's exemplar notes; if absent, find the closest file yourself.
-- `files:` is the intended edit set. `read-files:` is the smallest extra existing context the implementer may inspect before editing.
-- Each task = one work-unit commit's worth (15–30 min), self-contained: the implementer reads ONLY this file + spec/state references + conventions + learnings + task-declared paths.
+- `files:` is the intended edit set, not a read allowlist. The implementer may inspect other repository context needed for the bounded task.
+- Each task = one work-unit commit's worth (15–30 min), self-contained and explicit about intended edits.
 - `hotfix`/`lite`: make the smallest useful plan, usually one task. The `tests:` line MUST require the regression/change test first and cite the state one-line spec instead of AC IDs.
 - If the feature has an approved mock in `docs/mocks/`, the UI task's `pattern:`/`files:` references the mock file as the base component.
 

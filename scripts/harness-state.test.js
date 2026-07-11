@@ -11,6 +11,7 @@ import {
 } from "./harness-state.js"
 
 const skill = (name) => readFileSync(new URL(`../skills/${name}/SKILL.md`, import.meta.url), "utf8")
+const agent = (name) => readFileSync(new URL(`../agents/${name}.md`, import.meta.url), "utf8")
 
 test("AC-1 transition accept/reject with unmet rule", () => {
   const state = canonicalState({ mode: "full", phase: "plan" })
@@ -396,6 +397,23 @@ test("AC-9 judge re-runs both reviewers on cumulative fixer diff", () => {
   assert.match(docs, /re-judge.*both judges/i)
   assert.match(docs, /cumulative diff/i)
   assert.match(docs, /approved baseline.*fixer commit/is)
+})
+
+test("AC-10 bounded agents can inspect repository context without read allowlists", () => {
+  const docs = [agent("implementer"), agent("planner"), skill("implement"), skill("write-plan")].join("\n")
+
+  assert.match(docs, /read any repository file needed/i)
+  assert.match(docs, /minimal targeted (reads|exploration)/i)
+  assert.doesNotMatch(docs, /read ONLY/i)
+  assert.doesNotMatch(docs, /read-files:/i)
+})
+
+test("AC-15 missing read-files or optional conventions never blocks bounded work", () => {
+  const docs = [agent("implementer"), agent("planner"), skill("implement"), skill("write-plan")].join("\n")
+
+  assert.match(docs, /conventions.*optional/i)
+  assert.match(docs, /missing plan context is not a reason to stop/i)
+  assert.match(docs, /discover.*repository context/i)
 })
 import { mkdtemp, mkdir, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
