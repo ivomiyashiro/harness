@@ -5,7 +5,9 @@ argument-hint: [feature]
 
 Read-only. No dispatching, no writes.
 
-1. If a feature is given: read `docs/state/$ARGUMENTS.md` and report it.
+Before any other action, execute `node "__HARNESS_ROOT__/scripts/harness-input.js" status "$1"` when an argument is supplied, or `node "__HARNESS_ROOT__/scripts/harness-input.js" status` otherwise. The command template positional `$1` supplies one argv value without raw shell interpolation. Stop on failure. Use only its returned `feature`; never place the raw command argument in shell text, a path, or command.
+
+1. If a validated feature is returned: read `docs/state/<feature>.md` and report it.
 2. Else: read `docs/state/_active.md` if it exists, then glob `docs/state/*.md` (skip `_active.md`, include `epic-*.md`) to fill any missing details. Print a compact table:
 
 ```

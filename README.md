@@ -60,14 +60,14 @@ To run Harness phases on non-Claude models, pass plugin options. The keys are Ha
       {
         "defaultModel": "openai/gpt-5.6-terra",
         "models": {
-          "explorer": "openai/gpt-5.6-luna",
+          "explorer": "openai/gpt-5.4-mini",
           "planner": "openai/gpt-5.6-terra",
           "implementer": "openai/gpt-5.6-sol",
           "judge-a": "openai/gpt-5.6-terra",
           "judge-b": "openai/gpt-5.6-terra",
           "fixer": "openai/gpt-5.6-sol",
           "visual": "openai/gpt-5.6-terra",
-          "verifier": "openai/gpt-5.6-luna"
+          "verifier": "openai/gpt-5.4-mini"
         }
       }
     ]
@@ -103,4 +103,4 @@ The opencode plugin registers the repo's `commands/`, `agents/`, and `skills/` r
 
 Skills orchestrate phases and pipeline state; agents execute bounded work. Implementers commit persistent unit, integration, and e2e tests from the plan. After judge, the `verify` skill dispatches the observe-only `verifier` for a real web, API, or mobile happy-path smoke. Human testing is requested only for acceptance criteria explicitly tagged `[manual]`.
 
-Recommended model tiers: `openai/gpt-5.6-sol` for implementation/fixing, `openai/gpt-5.6-terra` for planning/review/visual work, and `openai/gpt-5.6-luna` for cheap exploration/verification.
+Recommended model tiers: `openai/gpt-5.6-sol` for implementation/fixing, `openai/gpt-5.6-terra` for planning/review/visual work, and `openai/gpt-5.4-mini` for cheap exploration/verification.

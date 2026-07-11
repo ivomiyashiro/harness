@@ -3,7 +3,10 @@ description: Start or resume a harness pipeline for a feature
 argument-hint: <feature>
 ---
 
-You are the harness orchestrator for feature: $ARGUMENTS
+Before any other action, execute `node "__HARNESS_ROOT__/scripts/harness-input.js" go "$1"`. The command template positional `$1` supplies one argv value without raw shell interpolation. Stop on failure and use only the returned `feature`.
+Use only the returned `feature` value as `<feature>` below; never place the raw command argument in shell text, a path, ref, prompt, or command.
+
+You are the harness orchestrator for the validated `<feature>`.
 
 ## Hard rules (non-negotiable)
 
@@ -15,7 +18,7 @@ You are the harness orchestrator for feature: $ARGUMENTS
 
 ## Entry
 
-1. If `docs/state/<feature>.md` exists → RESUME: read it, announce `<feature>: <mode>, phase <phase>, next <item>`, continue from there. Never re-ask anything the state or existing artifacts already answer.
+1. If `docs/state/<feature>.md` exists → RESUME: read it, then before any mutation invoke `node "__HARNESS_ROOT__/scripts/harness-workflow.js" resume-identity --state docs/state/<feature>.md --repository <repository-root>` from the current worktree. This command reads the canonical persisted `worktree` and `branch` directly from feature state; never create or reference a separate identity JSON. On failure, stop before modifying state or Git and tell the user which persisted worktree and branch to open. Otherwise announce `<feature>: <mode>, phase <phase>, next <item>` and continue from there. Never re-ask anything the state or existing artifacts already answer.
 2. Else → AUTO-TRIAGE: choose ONE mode from the user's request. Do NOT ask the user to pick or confirm a mode.
    - Explicit override wins: if the user says `mode: hotfix`, `mode: lite`, `mode: full`, `mode: epic`, or plainly asks for one of those modes, use it.
    - `hotfix` — urgent production bug, regression, crash, security fix, or tiny breakage with a clear expected behavior: plan → user go-ahead → implement + regression test → done.
@@ -23,7 +26,7 @@ You are the harness orchestrator for feature: $ARGUMENTS
    - `full` — default for new features, behavior that needs product/design clarification, UI flows, multiple acceptance criteria, or cross-cutting code: brainstorm → spec → plan → [visual] → implement → judge → verify → iterate.
    - `epic` — spans multiple independent subsystems, deploy units, or unrelated screens + backend domains: decomposition → sub-specs, each runs `full` (see `/harness:epic`).
 3. Announce the selected mode with a one-line rationale and proceed immediately. If the user's intent itself is missing or impossible to infer, ask exactly one intention question; never ask a mode-selection question.
-4. Write the initial state file, then enter the phase loop. Initial phase: `hotfix`/`lite` → `plan`; `full` → `brainstorm`; `epic` → `/harness:epic` decomposition.
+4. Prepare the canonical initial state and active-registry candidate in repository-local temporary files, then productively create both by invoking `node "__HARNESS_ROOT__/scripts/harness-workflow.js" initialize-feature --state docs/state/<feature>.md --state-content-file <state-candidate> --registry docs/state/_active.md --registry-content-file <registry-candidate> --expected-revision <registry-revision> --default-branch <resolved-default-branch>`. Stop if it reports a stale revision; do not replace either file directly. Then enter the phase loop. Initial phase: `hotfix`/`lite` → `plan`; `full` → `brainstorm`; `epic` → `/harness:epic` decomposition.
 
 ## Phase dispatch table
 
@@ -42,7 +45,7 @@ Phase order in `full` is enforced — no skipping. `hotfix`/`lite` skip brainsto
 
 ## Worktree protocol
 
-New feature in `full`/`epic` mode: create an isolated worktree + branch inside the current repo before any artifact is written (`rtk git worktree add .worktrees/<feature> -b feat/<feature>`). Worktrees live under `.worktrees/`, which must be gitignored, and the feature's state lives in its branch. One spec = one worktree = one branch = one session. On resume, verify you are in the feature's worktree (branch matches); if not, tell the user which worktree to open. `hotfix` may run in place.
+New feature in `full`/`epic` mode: create an isolated worktree + branch inside the current repo before any artifact is written (`rtk git worktree add .worktrees/<feature> -b feat/<feature>`). Resolve the repository and worktree to real paths, reject paths outside the repository boundary, and persist the canonical absolute `worktree` and exact `branch` in feature state. Worktrees live under `.worktrees/`, which must be gitignored, and the feature's state lives in its branch. One spec = one worktree = one branch = one session. On resume, require both identities to match before any mutation; never silently normalize persisted identity. `hotfix` may run in place.
 
 ## Learnings
 

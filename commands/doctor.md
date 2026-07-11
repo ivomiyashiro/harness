@@ -7,10 +7,11 @@ Run Harness doctor for this repo.
 
 ## Steps
 
-1. Execute `node "__HARNESS_ROOT__/scripts/harness-doctor.js" $ARGUMENTS` from the current repo root.
-2. Report the output compactly.
-3. If it reports `FAIL`, surface the failing lines first.
-4. If `--fix` was used and files changed, tell the user which files changed.
+1. Accept exactly no argument or the literal `--fix`; reject anything else.
+2. With no argument, execute `node "__HARNESS_ROOT__/scripts/harness-doctor.js"` from the current repo root. With `--fix`, execute `node "__HARNESS_ROOT__/scripts/harness-doctor.js" --fix`.
+3. Report the output compactly.
+4. If it reports `FAIL`, surface the failing lines first.
+5. If `--fix` was used and files changed, tell the user which files changed.
 
 ## Rules
 

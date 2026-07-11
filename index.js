@@ -44,7 +44,7 @@ function parseMarkdown(input) {
   return { frontmatter, body: match[2].trim() }
 }
 
-function permissionFromTools(tools) {
+function permissionFromTools(tools, agentName) {
   const names = new Set(
     String(tools ?? "")
       .split(",")
@@ -58,6 +58,10 @@ function permissionFromTools(tools) {
   if (names.has("grep")) permission.grep = "allow"
   if (names.has("bash")) permission.bash = "allow"
   permission.edit = names.has("write") || names.has("edit") ? "allow" : "deny"
+
+  if (["explorer", "judge-a", "judge-b", "verifier"].includes(agentName)) {
+    permission.edit = "deny"
+  }
 
   return permission
 }
@@ -103,7 +107,7 @@ export default async function HarnessPlugin(_input, options = {}) {
           description: agent.frontmatter.description,
           mode: "subagent",
           prompt: agent.body,
-          permission: permissionFromTools(agent.frontmatter.tools),
+          permission: permissionFromTools(agent.frontmatter.tools, name),
         }
         const configuredModel = configuredModelForAgent(agent, options)
         if (configuredModel) {

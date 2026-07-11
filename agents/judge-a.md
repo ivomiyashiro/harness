@@ -10,7 +10,7 @@ You judge whether the DIFF satisfies the SPEC and stays within the project + uni
 ## Inputs (exactly these)
 
 1. The spec (`docs/specs/<feature>.md`)
-2. The diff — obtain it yourself: `rtk git diff <range given in your prompt>`; if `rtk` is unavailable, use plain `git diff` and note the fallback.
+2. The diff — inspect the range given in your prompt directly.
 3. `docs/conventions.md` (local project contract; may be sparse)
 
 ## Forbidden inputs

@@ -7,19 +7,20 @@ Orchestrator-side. Judges catch SPEC drift, 4R drift (Risk, Readability, Reliabi
 
 ## Dual review (full mode)
 
-1. Determine the diff range (feature branch base..HEAD).
+1. Determine the diff range (approved baseline..HEAD).
 2. Launch `judge-a` AND `judge-b` in PARALLEL (one message, two Agent calls), identical inputs: the CURRENT spec path (re-read each cycle — source of truth, never a cached copy), diff range, `docs/conventions.md` path. Judges also have built-in `R1-R4` review criteria and `CORE-*` code laws, so `docs/conventions.md` may be sparse. Never pass one judge's verdict to the other.
 3. Synthesize the two caveman verdicts — NO user gate, the orchestrator auto-proceeds:
 
 | Outcome | Action |
 | --- | --- |
-| Finding reported by BOTH (same issue, any wording) | → fixer queue, dispatched AUTOMATICALLY (no approval gate) |
-| Finding reported by ONE only | → AUTO-DISMISS + log one caveman line to `docs/learnings.md`. NEVER surface to the user as a decision |
+| Blocking finding reported by BOTH (same issue, any wording) | → explicitly confirm with evidence, record it in the fixer queue, and dispatch AUTOMATICALLY (no approval gate) |
+| Blocking finding reported by ONE only | → explicitly confirm or reject with evidence; it MUST NOT disappear solely because it was reported once |
+| Warning reported by ONE only | → AUTO-DISMISS + log one caveman line to `docs/learnings.md`. NEVER surface to the user as a decision |
 | Both `verdict: clean` | → write `phase: verify`, done |
 
-4. Auto-dispatch `fixer` with the both-confirmed list. Pass the CURRENT spec path explicitly (same source-of-truth re-read as the judges). One fixer, one commit.
-5. RE-JUDGE only the fixer's commit (`rtk git diff <fix-commit>^..<fix-commit>`) — both judges again, same inputs incl. the current spec path, same rules. Cap at 2 re-judge cycles: if findings still do not converge to clean after 2 cycles, STOP and surface the unresolved findings to the user as a FAILURE (not a fix/dismiss decision).
-6. Update the state file `judges:` line at every step (verdicts → confirmed → fixed → cycle count) BEFORE advancing.
+4. Synthesis must account for every blocking finding from either judge: explicitly confirm or reject each one with evidence, store that evidence in judge state/checkpoints, then auto-dispatch `fixer` with the confirmed list. Pass the CURRENT spec path explicitly (same source-of-truth re-read as the judges). One fixer, one commit.
+5. RE-JUDGE after fixes using the cumulative diff (`rtk git diff <approved-baseline>..<fixer-commit>`) — both judges again, same inputs incl. the current spec path, same rules. Cap at 2 re-judge cycles: if findings still do not converge to clean after 2 cycles, STOP and surface the unresolved findings to the user as a FAILURE (not a fix/dismiss decision).
+6. Update the state file `judges:` line at every step (verdicts → evidence → confirmed/rejected → fixed → cycle count) BEFORE advancing.
 
 > Amended-AC guard: if a finding contradicts an AC that was already amended in the current spec, do NOT revert the implementation. The current spec is authoritative — drop the finding. This is why judge/fixer dispatch ALWAYS receives the current spec path, never a stale copy.
 

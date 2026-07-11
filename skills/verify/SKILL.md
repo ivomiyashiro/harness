@@ -3,7 +3,7 @@ name: verify
 description: "Verify phase — post-judge runtime smoke, then an optional human checklist for manual-tagged ACs. Trigger: harness pipeline reaches verify phase."
 ---
 
-Orchestrator-side. Implementers prove individual tasks with persistent tests; this phase independently proves that the final integrated feature works at runtime after implementation and judge fixes. The human never tests a broken build.
+Orchestrator-side. Implementers prove individual tasks with persistent tests; this phase independently proves that the final integrated feature works at runtime after implementation and judge fixes. The human never tests a broken build. Manual approval is approval evidence tied to the gate and state revision; the current resume message is not approval evidence.
 
 ## Steps
 
@@ -18,7 +18,7 @@ Orchestrator-side. Implementers prove individual tasks with persistent tests; th
 
    Never invent items beyond the tagged ACs — `unit`/`integration`/`e2e` tags are already covered by persistent tests; padding the checklist wastes the human.
 5. Present the checklist. The user's OK is the gate.
-6. Record the outcome in the state file (`checklist: 3/4 ok, pending AC-6`) BEFORE advancing: all OK → `phase: iterate` (finish path); failures → `phase: iterate` with the feedback.
+6. Record the outcome and verification/manual checklist checkpoint in the state file (`checklist: 3/4 ok, pending AC-6`) BEFORE advancing: all OK → `phase: iterate` (finish path); failures → `phase: iterate` with the feedback. Resuming a recorded pass is idempotent.
 
 ## Boundary
 
