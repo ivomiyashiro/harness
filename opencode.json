@@ -6,16 +6,16 @@
     [
       "./index.js",
       {
-        "defaultModel": "openai/gpt-5.6-terra",
+        "defaultModel": "openai/gpt-5.6-sol",
         "models": {
           "explorer": "openai/gpt-5.4-mini",
           "planner": "openai/gpt-5.6-terra",
-          "implementer": "openai/gpt-5.6-sol",
+          "implementer": "openai/gpt-5.6-terra",
           "judge-a": "openai/gpt-5.6-terra",
           "judge-b": "openai/gpt-5.6-terra",
-          "fixer": "openai/gpt-5.6-sol",
-          "visual": "openai/gpt-5.6-terra",
-          "verifier": "openai/gpt-5.4-mini"
+          "fixer": "openai/gpt-5.6-terra",
+          "visual": "openai/gpt-5.6-sol",
+          "verifier": "openai/gpt-5.6-terra"
         }
       }
     ]
