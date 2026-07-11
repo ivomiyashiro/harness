@@ -4,6 +4,13 @@ import { fileURLToPath } from "node:url"
 
 const root = dirname(fileURLToPath(import.meta.url))
 
+const observeOnlyBashAllowlists = {
+  explorer: ["git diff *", "git log *", "git show *", "git status *", "rtk git diff *", "rtk git log *", "rtk git show *", "rtk git status *"],
+  "judge-a": ["git diff *", "git status *", "rtk git diff *", "rtk git status *"],
+  "judge-b": ["git diff *", "git status *", "rtk git diff *", "rtk git status *"],
+  verifier: ["npm run *", "pnpm run *", "yarn run *", "bun run *", "node *", "cargo run *", "cargo test *", "pytest *", "flutter run *", "flutter test *", "dart run *", "curl *", "rtk npm run *", "rtk pnpm run *", "rtk yarn run *", "rtk bun run *", "rtk node *", "rtk cargo run *", "rtk cargo test *", "rtk pytest *", "rtk flutter run *", "rtk flutter test *", "rtk dart run *", "rtk curl *"],
+}
+
 const harnessAgentPrompt = `You are Harness, the primary opencode agent for the Harness pipeline.
 
 Use Harness commands for pipeline work:
@@ -44,7 +51,7 @@ function parseMarkdown(input) {
   return { frontmatter, body: match[2].trim() }
 }
 
-function permissionFromTools(tools) {
+function permissionFromTools(tools, agentName) {
   const names = new Set(
     String(tools ?? "")
       .split(",")
@@ -58,6 +65,19 @@ function permissionFromTools(tools) {
   if (names.has("grep")) permission.grep = "allow"
   if (names.has("bash")) permission.bash = "allow"
   permission.edit = names.has("write") || names.has("edit") ? "allow" : "deny"
+
+  const bashAllowlist = observeOnlyBashAllowlists[agentName]
+  if (bashAllowlist) {
+    permission.edit = "deny"
+    permission.bash = Object.fromEntries([
+      ["*", "deny"],
+      ...bashAllowlist.map((command) => [command, "allow"]),
+      ["* > *", "deny"],
+      ["* >> *", "deny"],
+      ["* < *", "deny"],
+      ["* | *", "deny"],
+    ])
+  }
 
   return permission
 }
@@ -103,7 +123,7 @@ export default async function HarnessPlugin(_input, options = {}) {
           description: agent.frontmatter.description,
           mode: "subagent",
           prompt: agent.body,
-          permission: permissionFromTools(agent.frontmatter.tools),
+          permission: permissionFromTools(agent.frontmatter.tools, name),
         }
         const configuredModel = configuredModelForAgent(agent, options)
         if (configuredModel) {

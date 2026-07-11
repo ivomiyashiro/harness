@@ -13,3 +13,21 @@ test("preserves the provider-qualified model for configured agents", async () =>
 
   assert.equal(config.agent.explorer.model, "openai/gpt-5.6-luna")
 })
+
+test("restricts observe-only agents to explicit Bash allowlists", async () => {
+  const plugin = await HarnessPlugin({})
+  const config = {}
+
+  plugin.config(config)
+
+  for (const name of ["explorer", "judge-a", "judge-b", "verifier"]) {
+    assert.equal(config.agent[name].permission.edit, "deny")
+    assert.equal(config.agent[name].permission.bash["*"], "deny")
+    assert.equal(config.agent[name].permission.bash["rm *"], undefined)
+    assert.equal(config.agent[name].permission.bash["git commit *"], undefined)
+  }
+
+  assert.equal(config.agent.explorer.permission.bash["git log *"], "allow")
+  assert.equal(config.agent["judge-a"].permission.bash["git diff *"], "allow")
+  assert.equal(config.agent.verifier.permission.bash["npm run *"], "allow")
+})
