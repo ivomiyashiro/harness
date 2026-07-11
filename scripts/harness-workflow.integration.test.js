@@ -20,11 +20,59 @@ test("AC-4 resume workflow entrypoint rejects wrong branch before mutation", asy
   await git(repository, "add", "tracked");
   await git(repository, "commit", "-m", "fixture");
   const state = path.join(repository, "identity.json");
-  await writeFile(state, JSON.stringify({ worktree: await realpath(repository), branch: "feature/expected" }));
+  await writeFile(state, `worktree: ${await realpath(repository)}\nbranch: feature/expected\n`);
   const before = await git(repository, "status", "--porcelain=v1");
 
   await assert.rejects(exec(process.execPath, [workflow, "resume-identity", "--state", state, "--repository", repository], { cwd: repository }), /resume branch mismatch/);
   assert.equal(await git(repository, "status", "--porcelain=v1"), before);
+});
+
+test("AC-4 resume workflow entrypoint accepts canonical persisted identity", async () => {
+  const repository = await mkdtemp(path.join(os.tmpdir(), "workflow-resume-ok-"));
+  await git(repository, "init", "-b", "feature/expected");
+  const state = path.join(repository, "identity.md");
+  await writeFile(state, `worktree: ${await realpath(repository)}\nbranch: feature/expected\n`);
+
+  const { stdout } = await exec(process.execPath, [workflow, "resume-identity", "--state", state, "--repository", repository], { cwd: repository });
+
+  assert.deepEqual(JSON.parse(stdout), { status: "identity-ok" });
+});
+
+test("AC-4 resume workflow entrypoint rejects worktree mismatch before mutation", async () => {
+  const repository = await mkdtemp(path.join(os.tmpdir(), "workflow-resume-worktree-"));
+  await git(repository, "init", "-b", "trunk");
+  await git(repository, "config", "user.email", "test@example.test");
+  await git(repository, "config", "user.name", "Test");
+  await writeFile(path.join(repository, "tracked"), "before\n");
+  await git(repository, "add", "tracked");
+  await git(repository, "commit", "-m", "fixture");
+  const other = path.join(repository, ".worktrees", "other");
+  await git(repository, "worktree", "add", "-b", "feature/other", other);
+  const state = path.join(repository, "identity.md");
+  await writeFile(state, `worktree: ${await realpath(repository)}\nbranch: trunk\n`);
+  const beforeState = await readFile(state, "utf8");
+  const beforeHead = await git(repository, "rev-parse", "HEAD");
+
+  await assert.rejects(
+    exec(process.execPath, [workflow, "resume-identity", "--state", state, "--repository", repository], { cwd: other }),
+    /resume worktree mismatch/,
+  );
+  assert.equal(await readFile(state, "utf8"), beforeState);
+  assert.equal(await git(repository, "rev-parse", "HEAD"), beforeHead);
+});
+
+test("AC-4 resume workflow entrypoint rejects unsafe persisted identity before mutation", async () => {
+  const repository = await mkdtemp(path.join(os.tmpdir(), "workflow-resume-unsafe-"));
+  await git(repository, "init", "-b", "trunk");
+  const state = path.join(repository, "identity.md");
+  await writeFile(state, `worktree: ${await realpath(repository)}\nbranch: --evil\n`);
+  const before = await readFile(state, "utf8");
+
+  await assert.rejects(
+    exec(process.execPath, [workflow, "resume-identity", "--state", state, "--repository", repository], { cwd: repository }),
+    /persisted branch is unsafe/,
+  );
+  assert.equal(await readFile(state, "utf8"), before);
 });
 
 test("FR-5 registry workflow entrypoint performs CAS and rejects stale rewrite", async () => {
