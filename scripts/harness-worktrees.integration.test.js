@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { spawn, spawnSync } from "node:child_process"
-import { executeParallelTasks, runParallelTasks, worktreeEntrypoint } from "./harness-worktrees.js"
+import { executeParallelTasks, integrateTaskCommits, runParallelTasks, worktreeEntrypoint } from "./harness-worktrees.js"
 
 function git(cwd, ...args) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8" })
@@ -136,4 +136,40 @@ test("AC-6 integration state checkpoints successful sibling commits when a paral
   assert.equal(state.pendingCommits.length, 1)
   assert.equal(git(root, "cat-file", "-t", state.pendingCommits[0]), "commit")
   assert.equal(git(root, "rev-parse", "HEAD^{tree}"), git(root, "rev-parse", "HEAD^{tree}"))
+})
+
+test("concurrent integration sessions merge state checkpoints instead of overwriting", async () => {
+  const root = mkdtempSync(join(tmpdir(), "harness-state-concurrency-"))
+  const statePath = join(root, "integration.json")
+  const seen = []
+  const run = async (_command, args) => {
+    if (args[0] === "cherry-pick") {
+      seen.push(args[1])
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+    return { stdout: "", stderr: "" }
+  }
+
+  await Promise.all([
+    integrateTaskCommits({ repo: root, commits: ["commit-one"], statePath, run }),
+    integrateTaskCommits({ repo: root, commits: ["commit-two"], statePath, run }),
+  ])
+
+  assert.deepEqual(new Set(JSON.parse(readFileSync(statePath, "utf8")).integrated), new Set(seen))
+})
+
+test("cherry-pick abort failure is surfaced and checkpointed", async () => {
+  const root = mkdtempSync(join(tmpdir(), "harness-abort-failure-"))
+  const statePath = join(root, "integration.json")
+  const run = async (_command, args) => {
+    throw new Error(args.includes("--abort") ? "abort unavailable" : "conflict")
+  }
+
+  await assert.rejects(
+    integrateTaskCommits({ repo: root, commits: ["broken-commit"], statePath, run }),
+    /cherry-pick --abort failed: abort unavailable/,
+  )
+  const state = JSON.parse(readFileSync(statePath, "utf8"))
+  assert.equal(state.pending, "broken-commit")
+  assert.match(state.recoveryError, /abort failed/)
 })

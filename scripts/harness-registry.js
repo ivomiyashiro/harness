@@ -11,8 +11,8 @@ async function runGit(args) {
 
 async function registryPathOnBranch(registryPath, branch, git) {
   const root = await realpath((await git(["rev-parse", "--show-toplevel"])).trim());
-  const canonicalRegistryPath = await realpath(registryPath);
-  const relative = path.relative(root, canonicalRegistryPath);
+  const canonicalParent = await realpath(path.dirname(registryPath));
+  const relative = path.relative(root, path.join(canonicalParent, path.basename(registryPath)));
   if (relative.startsWith("..") || path.isAbsolute(relative)) throw new Error("Registry path is outside repository");
   const entries = (await git(["worktree", "list", "--porcelain"])).trim().split(/\r?\n\r?\n/);
   let worktree;

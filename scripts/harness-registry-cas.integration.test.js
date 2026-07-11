@@ -33,3 +33,16 @@ test("incompatible same-revision writers preserve the winner and reject the stal
   assert.notEqual(winnerIndex, staleIndex);
   assert.equal(await readFile(registryPath, "utf8"), contents[winnerIndex]);
 });
+
+test("a missing registry is created after validating its canonical parent", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "registry-create-"));
+  const registryPath = path.join(directory, "_active.md");
+  const git = async (args) => args[0] === "rev-parse"
+    ? `${directory}\n`
+    : `worktree ${directory}\nbranch refs/heads/trunk\n`;
+
+  const result = await updateRegistry({ registryPath, content: "created\n", defaultBranch: "trunk", git });
+
+  assert.equal(result.status, "updated");
+  assert.equal(await readFile(registryPath, "utf8"), "created\n");
+});

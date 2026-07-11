@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdir, readFile, realpath, rename, writeFile } from 'node:fs/promises';
+import { mkdir, open, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 export function runChild(command, args, options = {}) {
@@ -97,9 +97,10 @@ export async function executeParallelTasks({ repo, tasks, runTask, statePath, cr
   }
   const failures = execution.results.filter((result) => result.status === 'rejected');
   if (failures.length) {
-    const state = await loadState(statePath);
-    state.pendingCommits = [...new Set([...(state.pendingCommits ?? []), ...commits])];
-    await saveState(statePath, state);
+    await updateState(statePath, (state) => ({
+      ...state,
+      pendingCommits: [...new Set([...(state.pendingCommits ?? []), ...commits])],
+    }));
     const error = new Error(`parallel task failure; ${commits.length} successful sibling commit(s) checkpointed for integration`);
     error.cause = failures[0].reason;
     throw error;
@@ -118,30 +119,71 @@ async function loadState(statePath) {
 }
 
 async function saveState(statePath, state) {
-  const temporary = `${statePath}.${process.pid}.tmp`;
+  const temporary = `${statePath}.${process.pid}.${Date.now()}.${Math.random()}.tmp`;
   await writeFile(temporary, `${JSON.stringify(state)}\n`, { flag: 'wx' });
   await rename(temporary, statePath);
 }
 
-export async function integrateTaskCommits({ repo, commits, statePath }) {
-  const state = await loadState(statePath);
+const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+async function updateState(statePath, transform) {
+  const lockPath = `${statePath}.lock`;
+  let lock;
+  for (let attempts = 0; !lock; attempts++) {
+    try { lock = await open(lockPath, 'wx'); }
+    catch (error) {
+      if (error.code !== 'EEXIST' || attempts >= 500) throw new Error(`unable to acquire integration state lock: ${error.message}`);
+      await wait(10);
+    }
+  }
+  try {
+    const current = await loadState(statePath);
+    const next = await transform(current);
+    await saveState(statePath, next);
+    return next;
+  } finally {
+    await lock.close();
+    await rm(lockPath, { force: true });
+  }
+}
+
+export async function integrateTaskCommits({ repo, commits, statePath, run = runChild }) {
   for (const commit of commits) {
-    if (state.integrated.includes(commit)) continue;
-    state.pending = commit;
-    await saveState(statePath, state);
+    const state = await loadState(statePath);
+    if ((state.integrated ?? []).includes(commit)) continue;
+    await updateState(statePath, (current) => ({
+      ...current,
+      integrated: current.integrated ?? [],
+      pending: commit,
+    }));
     try {
-      await runChild('git', ['cherry-pick', commit], { cwd: repo });
+      await run('git', ['cherry-pick', commit], { cwd: repo });
     } catch (error) {
-      await runChild('git', ['cherry-pick', '--abort'], { cwd: repo }).catch(() => {});
+      try {
+        await run('git', ['cherry-pick', '--abort'], { cwd: repo });
+      } catch (abortError) {
+        await updateState(statePath, (current) => ({
+          ...current,
+          pending: commit,
+          recoveryError: `cherry-pick --abort failed: ${abortError.message}`,
+        }));
+        const recoveryFailure = new Error(`integration conflict at ${commit}; cherry-pick --abort failed: ${abortError.message}`);
+        recoveryFailure.cause = error;
+        recoveryFailure.abortError = abortError;
+        throw recoveryFailure;
+      }
       const conflict = new Error(`integration conflict at ${commit}: ${error.message}`);
       conflict.cause = error;
       throw conflict;
     }
-    state.integrated.push(commit);
-    state.pending = null;
-    await saveState(statePath, state);
+    await updateState(statePath, (current) => ({
+      ...current,
+      integrated: [...new Set([...(current.integrated ?? []), commit])],
+      pending: current.pending === commit ? null : current.pending,
+      recoveryError: undefined,
+    }));
   }
-  return state;
+  return loadState(statePath);
 }
 
 function parseCliArgs(args) {
