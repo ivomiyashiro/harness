@@ -15,9 +15,9 @@ If mode is `hotfix`/`lite`, `docs/plans/<feature>/plan.md` already exists, and s
    - `full`: pass `docs/specs/<feature>.md`.
    - `hotfix`/`lite`: pass `docs/state/<feature>.md` and explicitly label the prompt `hotfix` or `lite`; the planner writes a short implementation plan from the bug/change line in state.
 2. On its caveman report, run the **overlap check**:
-   - Read `docs/state/_active.md` from main (`rtk git show main:docs/state/_active.md` when in a worktree; absent file = no active features).
+   - Resolve the repository default branch with `scripts/harness-registry.js`; stop before writing with its actionable error when no unambiguous default exists. Read `docs/state/_active.md` from that branch (absent file = no active features).
    - Compare the plan's declared `globs:` against every active feature's globs.
-   - Append/update this feature's line in `_active.md` on main using format §5 (`feature | mode | phase | branch | globs | next`) and commit it there.
+   - Append/update this feature's line in `_active.md` using format §5 (`feature | mode | phase | branch | globs | next`) through `scripts/harness-registry.js`, supplying the revision that was read. Commit the successful atomic update on the resolved default branch; on `stale-revision`, reread and re-run the overlap check rather than overwriting the winner.
 3. Run the canonical `complete-plan` transition and record its checkpoint. `full UI` work runs `complete-plan` and writes `phase: visual`; `full non-UI` work runs `complete-plan` and writes `phase: implement` with no visual gate. `hotfix`/`lite`: keep `phase: plan` until explicit plan approval is recorded for this revision.
 4. `full`: **Auto-proceed** (routine boundary — see CLAUDE.md "Auto-proceder + objeción"): do NOT block for plan approval. In the SAME turn:
    - **Resumen** — state the planner's task list and each task's declared `globs:` in one terse block.
