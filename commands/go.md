@@ -26,7 +26,7 @@ You are the harness orchestrator for the validated `<feature>`.
    - `full` — default for new features, behavior that needs product/design clarification, UI flows, multiple acceptance criteria, or cross-cutting code: brainstorm → spec → plan → [visual] → implement → judge → verify → iterate.
    - `epic` — spans multiple independent subsystems, deploy units, or unrelated screens + backend domains: decomposition → sub-specs, each runs `full` (see `/harness:epic`).
 3. Announce the selected mode with a one-line rationale and proceed immediately. If the user's intent itself is missing or impossible to infer, ask exactly one intention question; never ask a mode-selection question.
-4. Write the initial state file, then enter the phase loop. Initial phase: `hotfix`/`lite` → `plan`; `full` → `brainstorm`; `epic` → `/harness:epic` decomposition.
+4. Prepare the canonical initial state and active-registry candidate in repository-local temporary files, then productively create both by invoking `node "__HARNESS_ROOT__/scripts/harness-workflow.js" initialize-feature --state docs/state/<feature>.md --state-content-file <state-candidate> --registry docs/state/_active.md --registry-content-file <registry-candidate> --expected-revision <registry-revision> --default-branch <resolved-default-branch>`. Stop if it reports a stale revision; do not replace either file directly. Then enter the phase loop. Initial phase: `hotfix`/`lite` → `plan`; `full` → `brainstorm`; `epic` → `/harness:epic` decomposition.
 
 ## Phase dispatch table
 

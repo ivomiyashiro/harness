@@ -174,6 +174,7 @@ test("FR-2 worktree CLI rejects traversal, outside state, symlinks, and invalid 
 
 test("concurrent integration sessions merge state checkpoints instead of overwriting", async () => {
   const root = mkdtempSync(join(tmpdir(), "harness-state-concurrency-"))
+  spawnSync("git", ["init", "-b", "trunk"], { cwd: root })
   const statePath = join(root, "integration.json")
   const seen = []
   const run = async (_command, args) => {
@@ -192,8 +193,43 @@ test("concurrent integration sessions merge state checkpoints instead of overwri
   assert.deepEqual(new Set(JSON.parse(readFileSync(statePath, "utf8")).integrated), new Set(seen))
 })
 
+test("FR-4 serializes distinct state files by canonical repository identity", async () => {
+  const root = mkdtempSync(join(tmpdir(), "harness-repo-lock-"))
+  spawnSync("git", ["init", "-b", "trunk"], { cwd: root })
+  let active = 0
+  let maximum = 0
+  const run = async () => {
+    active++
+    maximum = Math.max(maximum, active)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    active--
+    return { stdout: "", stderr: "" }
+  }
+  await Promise.all([
+    integrateTaskCommits({ repo: root, commits: ["one"], statePath: join(root, "one.json"), run }),
+    integrateTaskCommits({ repo: root, commits: ["two"], statePath: join(root, "two.json"), run }),
+  ])
+  assert.equal(maximum, 1)
+})
+
+test("FR-7 resumes after cherry-pick completed before checkpoint", async () => {
+  const root = mkdtempSync(join(tmpdir(), "harness-pick-resume-"))
+  spawnSync("git", ["init", "-b", "trunk"], { cwd: root })
+  const statePath = join(root, "integration.json")
+  writeFileSync(statePath, JSON.stringify({ integrated: [], pending: "task-commit" }))
+  const calls = []
+  const run = async (_command, args) => {
+    calls.push(args)
+    return { stdout: args[0] === "cherry" ? "- task-commit\n" : "", stderr: "" }
+  }
+  const state = await integrateTaskCommits({ repo: root, commits: ["task-commit"], statePath, run })
+  assert.deepEqual(state.integrated, ["task-commit"])
+  assert.equal(calls.some((args) => args[0] === "cherry-pick"), false)
+})
+
 test("cherry-pick abort failure is surfaced and checkpointed", async () => {
   const root = mkdtempSync(join(tmpdir(), "harness-abort-failure-"))
+  spawnSync("git", ["init", "-b", "trunk"], { cwd: root })
   const statePath = join(root, "integration.json")
   const run = async (_command, args) => {
     throw new Error(args.includes("--abort") ? "abort unavailable" : "conflict")

@@ -64,6 +64,14 @@ function parseValue(value) {
   return value
 }
 
+function parseApprovals(value) {
+  if (value === "none") return {}
+  const match = /^(spec|plan|visual) rev (\d+) by (\S+) at (\S+) evidence (.+)$/.exec(value)
+  if (!match) throw new Error("unsafe legacy field: approvals")
+  const [, gate, revision, by, at, evidence] = match
+  return { [gate]: { gate, revision: Number(revision), approved: true, by, at, evidence } }
+}
+
 export function loadState(input) {
   const parsed = {}
   const seen = new Set()
@@ -74,12 +82,12 @@ export function loadState(input) {
     const value = line.slice(separator + 1).trim()
     if (!key) continue
     if (seen.has(key)) throw new Error(`ambiguous duplicate field: ${key}`)
-    if (key === "approvals" && value === "none") {
+    if (key === "approvals") {
       seen.add(key)
-      parsed.approvals = {}
+      parsed.approvals = parseApprovals(value)
       continue
     }
-    if (["approvals", "gates", "preservedApprovals"].includes(key)) {
+    if (["gates", "preservedApprovals"].includes(key)) {
       throw new Error(`unsafe legacy field: ${key}`)
     }
     seen.add(key)

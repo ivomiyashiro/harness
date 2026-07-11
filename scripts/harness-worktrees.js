@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { lstat, mkdir, open, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, open, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 export function runChild(command, args, options = {}) {
@@ -137,11 +137,29 @@ async function updateState(statePath, transform) {
 
 async function withStateLock(statePath, operation) {
   const lockPath = `${statePath}.lock`;
+  return withRecoverableLock(lockPath, operation);
+}
+
+function processIsAlive(pid) {
+  try { process.kill(pid, 0); return true; }
+  catch (error) { return error.code === 'EPERM'; }
+}
+
+async function withRecoverableLock(lockPath, operation) {
   let lock;
   for (let attempts = 0; !lock; attempts++) {
-    try { lock = await open(lockPath, 'wx'); }
+    try {
+      lock = await open(lockPath, 'wx');
+      await lock.writeFile(JSON.stringify({ pid: process.pid }));
+    }
     catch (error) {
       if (error.code !== 'EEXIST' || attempts >= 500) throw new Error(`unable to acquire integration state lock: ${error.message}`);
+      try {
+        const metadata = JSON.parse(await readFile(lockPath, 'utf8'));
+        if (!processIsAlive(metadata.pid)) await rm(lockPath);
+      } catch (lockError) {
+        if (lockError.code !== 'ENOENT' && Date.now() - (await stat(lockPath)).mtimeMs > 30_000) await rm(lockPath);
+      }
       await wait(10);
     }
   }
@@ -153,11 +171,26 @@ async function withStateLock(statePath, operation) {
   }
 }
 
+async function integrationLockPath(repo) {
+  const output = await runChild('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd: repo });
+  return path.join(await realpath(output.stdout.trim()), 'harness-integration.lock');
+}
+
+async function alreadyApplied(repo, commit, run) {
+  const result = await run('git', ['cherry', 'HEAD', commit], { cwd: repo });
+  return result.stdout.trim().startsWith('-');
+}
+
 export async function integrateTaskCommits({ repo, commits, statePath, run = runChild }) {
-  return withStateLock(statePath, async () => {
+  return withRecoverableLock(await integrationLockPath(repo), async () => withStateLock(statePath, async () => {
     let state = await loadState(statePath);
     for (const commit of commits) {
       if ((state.integrated ?? []).includes(commit)) continue;
+      if (state.pending === commit && await alreadyApplied(repo, commit, run)) {
+        state = { ...state, integrated: [...new Set([...(state.integrated ?? []), commit])], pending: null };
+        await saveState(statePath, state);
+        continue;
+      }
       state = { ...state, integrated: state.integrated ?? [], pending: commit };
       await saveState(statePath, state);
       try {
@@ -188,7 +221,7 @@ export async function integrateTaskCommits({ repo, commits, statePath, run = run
       await saveState(statePath, state);
     }
     return state;
-  });
+  }));
 }
 
 export async function checkpointTaskCommits({ commits, statePath }) {

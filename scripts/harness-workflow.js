@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { readFile, realpath } from "node:fs/promises";
+import { readFile, realpath, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { assertResumeIdentity, loadPersistedFeatureIdentity } from "./harness-state.js";
+import { assertResumeIdentity, loadFeatureIdentity, loadPersistedFeatureIdentity, loadState } from "./harness-state.js";
 import { updateRegistry, validateDefaultBranch } from "./harness-registry.js";
 import { runHarnessProcess } from "./harness-process.js";
 
@@ -47,7 +47,29 @@ export async function runWorkflow(argv, cwd = process.cwd()) {
       defaultBranch: args["default-branch"],
     });
   }
-  throw new Error("usage: harness-workflow.js <resume-identity|update-registry> ...");
+  if (command === "initialize-feature") {
+    const required = ["state", "state-content-file", "registry", "registry-content-file"];
+    if (required.some((key) => !args[key])) throw new Error("usage: initialize-feature --state <path> --state-content-file <path> --registry <path> --registry-content-file <path> [--expected-revision <sha>] [--default-branch <name>]");
+    const repository = await realpath((await runHarnessProcess("git", ["rev-parse", "--show-toplevel"], { cwd })).stdout.trim());
+    const canonicalFile = async (file, label) => assertInside(repository, await realpath(path.resolve(cwd, file)), label);
+    const stateParent = await realpath(path.dirname(path.resolve(cwd, args.state)));
+    const statePath = assertInside(repository, path.join(stateParent, path.basename(args.state)), "State path");
+    const stateContent = await readFile(await canonicalFile(args["state-content-file"], "State content path"), "utf8");
+    const parsedState = loadState(stateContent);
+    await loadFeatureIdentity(parsedState, repository);
+    const registryPath = await canonicalFile(args.registry, "Registry path");
+    const registryContent = await readFile(await canonicalFile(args["registry-content-file"], "Registry content path"), "utf8");
+    await writeFile(statePath, stateContent, { flag: "wx" });
+    try {
+      const result = await updateRegistry({ registryPath, content: registryContent, expectedRevision: args["expected-revision"], defaultBranch: args["default-branch"] });
+      if (result.status !== "updated") await rm(statePath);
+      return result;
+    } catch (error) {
+      await rm(statePath, { force: true });
+      throw error;
+    }
+  }
+  throw new Error("usage: harness-workflow.js <resume-identity|update-registry|initialize-feature> ...");
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)) {

@@ -137,3 +137,24 @@ test("FR-2 update-registry rejects an unsafe default branch before reading conte
   );
   assert.equal(await readFile(registry, "utf8"), "original\n");
 });
+
+test("FR-3/FR-5 productive entrypoint creates canonical state and registry together", async () => {
+  const repository = await mkdtemp(path.join(os.tmpdir(), "workflow-initialize-"));
+  await git(repository, "init", "-b", "trunk");
+  await git(repository, "config", "user.email", "test@example.test");
+  await git(repository, "config", "user.name", "Test");
+  await mkdir(path.join(repository, "docs", "state"), { recursive: true });
+  const registry = path.join(repository, "docs", "state", "_active.md");
+  const state = path.join(repository, "docs", "state", "feature.md");
+  const stateCandidate = path.join(repository, "state-candidate");
+  const registryCandidate = path.join(repository, "registry-candidate");
+  await writeFile(registry, "");
+  await writeFile(stateCandidate, `state_version: 1\nfeature: feature\nmode: full\nphase: brainstorm\nbranch: trunk\nworktree: ${await realpath(repository)}\nrevision: 0\napprovals: none\n`);
+  await writeFile(registryCandidate, "feature | full | brainstorm\n");
+  await git(repository, "add", ".");
+  await git(repository, "commit", "-m", "fixture");
+  const { stdout } = await exec(process.execPath, [workflow, "initialize-feature", "--state", state, "--state-content-file", stateCandidate, "--registry", registry, "--registry-content-file", registryCandidate, "--default-branch", "trunk"], { cwd: repository });
+  assert.equal(JSON.parse(stdout).status, "updated");
+  assert.match(await readFile(state, "utf8"), /feature: feature/);
+  assert.equal(await readFile(registry, "utf8"), "feature | full | brainstorm\n");
+});

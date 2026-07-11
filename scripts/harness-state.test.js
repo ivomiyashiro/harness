@@ -339,6 +339,13 @@ next: judge
   assert.throws(() => loadState("approvals: plan approved\n"), /unsafe legacy field: approvals/)
 })
 
+test("FR-7/FR-11 loads canonical approval evidence without discarding authority", () => {
+  const loaded = loadState("feature: approved\nrevision: 4\napprovals: plan rev 4 by human at 2026-07-11T00:00:00Z evidence msg-1\n")
+  assert.deepEqual(loaded.approvals.plan, {
+    gate: "plan", revision: 4, approved: true, by: "human", at: "2026-07-11T00:00:00Z", evidence: "msg-1",
+  })
+})
+
 test("AC-14 state and configuration reject token behavior fields", () => {
   const text = JSON.stringify(canonicalState())
 
