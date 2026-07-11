@@ -50,8 +50,20 @@ export async function runParallelTasks({ repo, tasks, runTask, createWorktree = 
   try {
     for (const task of tasks) worktrees.push(await createWorktree(repo, task));
   } catch (error) {
+    const cleanupFailures = [];
     for (const worktree of worktrees) {
-      await runChild('git', ['worktree', 'remove', '--force', worktree], { cwd: repo }).catch(() => {});
+      try {
+        await runChild('git', ['worktree', 'remove', '--force', worktree], { cwd: repo });
+      } catch (cleanupError) {
+        cleanupFailures.push({ worktree, cleanupError });
+      }
+    }
+    if (cleanupFailures.length) {
+      const retained = cleanupFailures.map(({ worktree }) => worktree).join(', ');
+      const cleanupError = new Error(`worktree cleanup failed; retained worktree(s): ${retained}; remove them and retry before sequential fallback`);
+      cleanupError.cause = cleanupFailures[0].cleanupError;
+      cleanupError.isolationError = error;
+      throw cleanupError;
     }
     const results = [];
     for (const task of tasks) results.push(await runTask(task, repo));

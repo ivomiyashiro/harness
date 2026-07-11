@@ -74,13 +74,18 @@ export function loadState(input) {
     const value = line.slice(separator + 1).trim()
     if (!key) continue
     if (seen.has(key)) throw new Error(`ambiguous duplicate field: ${key}`)
+    if (key === "approvals" && value === "none") {
+      seen.add(key)
+      parsed.approvals = {}
+      continue
+    }
     if (["approvals", "gates", "preservedApprovals"].includes(key)) {
       throw new Error(`unsafe legacy field: ${key}`)
     }
     seen.add(key)
     parsed[key] = parseValue(value)
   }
-  return canonicalState({ ...parsed, version: STATE_VERSION, approvals: {}, gates: {} })
+  return canonicalState({ ...parsed, version: STATE_VERSION, approvals: parsed.approvals ?? {}, gates: {} })
 }
 
 function approved(state, gate) {

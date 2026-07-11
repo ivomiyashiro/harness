@@ -28,6 +28,18 @@ test('runChild propagates non-zero exits and cleans up exactly once', async () =
   assert.equal(cleanups, 1);
 });
 
+test('AC-11 cleanup rejection preserves a primary child failure and surfaces without one', async () => {
+  const cleanupFailure = new Error('cleanup failed');
+  await assert.rejects(
+    runChild(process.execPath, ['-e', 'process.exit(7)'], { cleanup: async () => { throw cleanupFailure; } }),
+    /exited with code 7/,
+  );
+  await assert.rejects(
+    runChild(process.execPath, ['-e', ''], { cleanup: async () => { throw cleanupFailure; } }),
+    /cleanup failed/,
+  );
+});
+
 test('runChild enforces timeout and cleans up exactly once', async () => {
   let cleanups = 0;
   await assert.rejects(
@@ -56,6 +68,24 @@ test('parallel tasks use distinct worktrees and report isolation failure', async
   });
   assert.equal(fallback.mode, 'sequential-fallback');
   assert.deepEqual(fallbackSeen, [['09', repo], ['10', repo]]);
+});
+
+test('FR-7 cleanup failure blocks fallback with retained worktree recovery action', async () => {
+  const repo = await tempRepo();
+  const retained = path.join(repo, 'retained-task-worktree');
+  let creations = 0;
+  await assert.rejects(
+    runParallelTasks({
+      repo,
+      tasks: ['one', 'two'],
+      createWorktree: async () => {
+        if (creations++ === 0) return retained;
+        throw new Error('isolation failed');
+      },
+      runTask: async () => assert.fail('must not fall back after failed cleanup'),
+    }),
+    new RegExp(`worktree cleanup failed; retained worktree\\(s\\): ${retained.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}; remove them and retry before sequential fallback`),
+  );
 });
 
 test('serial integration records progress and resume skips integrated commits', async () => {
