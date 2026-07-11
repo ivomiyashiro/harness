@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdir, open, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, open, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 export function runChild(command, args, options = {}) {
@@ -127,6 +127,15 @@ async function saveState(statePath, state) {
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 async function updateState(statePath, transform) {
+  return withStateLock(statePath, async () => {
+    const current = await loadState(statePath);
+    const next = await transform(current);
+    await saveState(statePath, next);
+    return next;
+  });
+}
+
+async function withStateLock(statePath, operation) {
   const lockPath = `${statePath}.lock`;
   let lock;
   for (let attempts = 0; !lock; attempts++) {
@@ -137,10 +146,7 @@ async function updateState(statePath, transform) {
     }
   }
   try {
-    const current = await loadState(statePath);
-    const next = await transform(current);
-    await saveState(statePath, next);
-    return next;
+    return await operation();
   } finally {
     await lock.close();
     await rm(lockPath, { force: true });
@@ -148,42 +154,48 @@ async function updateState(statePath, transform) {
 }
 
 export async function integrateTaskCommits({ repo, commits, statePath, run = runChild }) {
-  for (const commit of commits) {
-    const state = await loadState(statePath);
-    if ((state.integrated ?? []).includes(commit)) continue;
-    await updateState(statePath, (current) => ({
-      ...current,
-      integrated: current.integrated ?? [],
-      pending: commit,
-    }));
-    try {
-      await run('git', ['cherry-pick', commit], { cwd: repo });
-    } catch (error) {
+  return withStateLock(statePath, async () => {
+    let state = await loadState(statePath);
+    for (const commit of commits) {
+      if ((state.integrated ?? []).includes(commit)) continue;
+      state = { ...state, integrated: state.integrated ?? [], pending: commit };
+      await saveState(statePath, state);
       try {
-        await run('git', ['cherry-pick', '--abort'], { cwd: repo });
-      } catch (abortError) {
-        await updateState(statePath, (current) => ({
-          ...current,
-          pending: commit,
-          recoveryError: `cherry-pick --abort failed: ${abortError.message}`,
-        }));
-        const recoveryFailure = new Error(`integration conflict at ${commit}; cherry-pick --abort failed: ${abortError.message}`);
-        recoveryFailure.cause = error;
-        recoveryFailure.abortError = abortError;
-        throw recoveryFailure;
+        await run('git', ['cherry-pick', commit], { cwd: repo });
+      } catch (error) {
+        try {
+          await run('git', ['cherry-pick', '--abort'], { cwd: repo });
+        } catch (abortError) {
+          state = { ...state, recoveryError: `cherry-pick --abort failed: ${abortError.message}` };
+          await saveState(statePath, state);
+          const recoveryFailure = new Error(`integration conflict at ${commit}; cherry-pick --abort failed: ${abortError.message}`);
+          recoveryFailure.cause = error;
+          recoveryFailure.abortError = abortError;
+          throw recoveryFailure;
+        }
+        const conflict = new Error(`integration conflict at ${commit}: ${error.message}`);
+        conflict.cause = error;
+        throw conflict;
       }
-      const conflict = new Error(`integration conflict at ${commit}: ${error.message}`);
-      conflict.cause = error;
-      throw conflict;
+      const pendingCommits = state.pendingCommits?.filter((pending) => pending !== commit);
+      state = {
+        ...state,
+        integrated: [...new Set([...(state.integrated ?? []), commit])],
+        pending: null,
+        recoveryError: undefined,
+        ...(pendingCommits === undefined ? {} : { pendingCommits }),
+      };
+      await saveState(statePath, state);
     }
-    await updateState(statePath, (current) => ({
-      ...current,
-      integrated: [...new Set([...(current.integrated ?? []), commit])],
-      pending: current.pending === commit ? null : current.pending,
-      recoveryError: undefined,
-    }));
-  }
-  return loadState(statePath);
+    return state;
+  });
+}
+
+export async function checkpointTaskCommits({ commits, statePath }) {
+  return updateState(statePath, (state) => ({
+    ...state,
+    pendingCommits: [...new Set([...(state.pendingCommits ?? []), ...commits])],
+  }));
 }
 
 function parseCliArgs(args) {
@@ -201,8 +213,35 @@ function parseCliArgs(args) {
   return { operation, ...values };
 }
 
+async function canonicalCliOptions(options) {
+  for (const [label, value] of [['repo', options.repo], ['state', options.state]]) {
+    if (value.split(/[\\/]/).includes('..')) throw new Error(`${label} must not contain traversal`);
+  }
+  const requestedRepo = path.resolve(options.repo);
+  const repo = await realpath(requestedRepo);
+  if (repo !== requestedRepo) throw new Error('repo must be a canonical path without symlinks');
+  const gitRoot = await realpath((await runChild('git', ['rev-parse', '--show-toplevel'], { cwd: repo })).stdout.trim());
+  if (gitRoot !== repo) throw new Error('repo must identify the current worktree root');
+
+  const requestedState = path.resolve(options.state);
+  const stateParent = await realpath(path.dirname(requestedState));
+  const state = path.join(stateParent, path.basename(requestedState));
+  const relative = path.relative(repo, state);
+  if (state !== requestedState || relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error('state must be a canonical path inside repo without symlinks');
+  }
+  try {
+    if ((await lstat(state)).isSymbolicLink()) throw new Error('state must not be a symlink');
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  if (options.tasks.some((task) => !/^\d{2}$/.test(task))) throw new Error('task must be a two-digit plan task number');
+  if (options.commits.some((commit) => !/^[0-9a-f]{40,64}$/.test(commit))) throw new Error('commit must be a canonical object id');
+  return { ...options, repo, state };
+}
+
 export async function worktreeEntrypoint(args, { createWorktree = defaultCreateWorktree } = {}) {
-  const options = parseCliArgs(args);
+  const options = await canonicalCliOptions(parseCliArgs(args));
   if (options.operation === 'prepare') {
     return runParallelTasks({
       repo: options.repo,
@@ -214,7 +253,10 @@ export async function worktreeEntrypoint(args, { createWorktree = defaultCreateW
   if (options.operation === 'integrate') {
     return integrateTaskCommits({ repo: options.repo, commits: options.commits, statePath: options.state });
   }
-  throw new Error('operation must be prepare or integrate');
+  if (options.operation === 'checkpoint') {
+    return checkpointTaskCommits({ commits: options.commits, statePath: options.state });
+  }
+  throw new Error('operation must be prepare, checkpoint, or integrate');
 }
 
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
