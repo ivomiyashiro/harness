@@ -250,3 +250,22 @@ test("AC-12 --fix changes only the Harness plugin tuple", () => {
   assert.equal(config.model, "vendor/root")
   assert.equal(config.plugin[1][1].defaultModel, "openai/gpt-5.6-terra")
 })
+
+test("AC-12 --fix ignores adversarial plugin names containing harness", () => {
+  const root = fixture()
+  const configPath = join(root, "opencode.json")
+  const adversarial = { defaultModel: "vendor/model", models: { verifier: "vendor/verifier" } }
+  writeFileSync(configPath, `${JSON.stringify({
+    plugin: [
+      ["evil-harness-helper", adversarial],
+      ["opencode-harness", { defaultModel: "wrong", models: {} }],
+    ],
+  }, null, 2)}\n`)
+
+  const result = runDoctor(root, "--fix")
+  const config = JSON.parse(readFileSync(configPath, "utf8"))
+
+  assert.equal(result.status, 0)
+  assert.deepEqual(config.plugin[0][1], adversarial)
+  assert.equal(config.plugin[1][1].defaultModel, "openai/gpt-5.6-terra")
+})

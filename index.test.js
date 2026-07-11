@@ -29,9 +29,21 @@ test("restricts observe-only agents to explicit Bash allowlists", async () => {
 
   assert.equal(config.agent.explorer.permission.bash["git log *"], "allow")
   assert.equal(config.agent["judge-a"].permission.bash["git diff *"], "allow")
-  assert.equal(config.agent.verifier.permission.bash["npm run *"], "allow")
+  for (const command of ["npm run *", "pnpm run *", "yarn run *", "bun run *", "rtk npm run *"]) {
+    assert.equal(config.agent.verifier.permission.bash[command], undefined)
+  }
   assert.equal(config.agent.verifier.permission.bash["node --test *"], "allow")
   assert.equal(config.agent.verifier.permission.bash["node *"], undefined)
   assert.equal(config.agent.verifier.permission.bash["node -e *"], undefined)
   assert.equal(config.agent.verifier.permission.bash["rtk node *"], undefined)
+})
+
+test("command templates never interpolate raw arguments into shell text", async () => {
+  const plugin = await HarnessPlugin({})
+  const config = {}
+  plugin.config(config)
+
+  for (const name of ["harness:go", "harness:epic", "harness:status"]) {
+    assert.doesNotMatch(config.command[name].template, /\$ARGUMENTS/)
+  }
 })

@@ -3,8 +3,8 @@ description: Decompose an oversized initiative into sub-specs with dependency or
 argument-hint: <name>
 ---
 
-Before any other action, run `node scripts/harness-input.js epic "$ARGUMENTS"`. Stop on failure.
-Use only the returned `feature` value as `<epic>` below; never use `$ARGUMENTS` in a path, ref, prompt, or command.
+Before any other action, pass the supplied argument as a single explicit argv value to `node scripts/harness-input.js epic`. Stop on failure.
+Use only the returned `feature` value as `<epic>` below; never place the raw command argument in shell text, a path, ref, prompt, or command.
 
 Epic decomposition for the validated `<epic>`.
 

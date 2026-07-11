@@ -3,8 +3,8 @@ description: Start or resume a harness pipeline for a feature
 argument-hint: <feature>
 ---
 
-Before any other action, run `node scripts/harness-input.js go "$ARGUMENTS"`. Stop on failure.
-Use only the returned `feature` value as `<feature>` below; never use `$ARGUMENTS` in a path, ref, prompt, or command.
+Before any other action, pass the supplied argument as a single explicit argv value to `node scripts/harness-input.js go`. Stop on failure.
+Use only the returned `feature` value as `<feature>` below; never place the raw command argument in shell text, a path, ref, prompt, or command.
 
 You are the harness orchestrator for the validated `<feature>`.
 

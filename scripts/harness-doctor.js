@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { dirname, join, resolve } from "node:path"
+import { fileURLToPath, pathToFileURL } from "node:url"
 import { spawnSync } from "node:child_process"
 import { checkTransition } from "./harness-state.js"
 
 const root = process.cwd()
+const harnessIndex = resolve(dirname(fileURLToPath(import.meta.url)), "..", "index.js")
 const args = process.argv.slice(2)
 if (args.length > 1 || (args.length === 1 && args[0] !== "--fix")) {
   console.error("Usage: harness-doctor.js [--fix]")
@@ -188,8 +190,13 @@ function checkModels() {
     add("warning", `root model is not gpt-5.6 tier: ${config.model}`)
   }
 
+  const isHarnessPlugin = (spec) => spec === "opencode-harness"
+    || spec.startsWith("opencode-harness@")
+    || spec === harnessIndex
+    || spec === pathToFileURL(harnessIndex).href
+
   for (const plugin of config.plugin ?? []) {
-    if (!Array.isArray(plugin) || typeof plugin[0] !== "string" || !plugin[0].includes("harness")) continue
+    if (!Array.isArray(plugin) || typeof plugin[0] !== "string" || !isHarnessPlugin(plugin[0])) continue
     const options = Array.isArray(plugin) ? plugin[1] : undefined
     if (!options || typeof options !== "object") continue
     if (options.defaultModel !== expected.defaultModel) {
@@ -250,7 +257,7 @@ function checkModels() {
       const source = raw.slice(start, end)
       let plugin
       try { plugin = JSON.parse(source) } catch { continue }
-      if (!Array.isArray(plugin) || typeof plugin[0] !== "string" || !plugin[0].includes("harness")) continue
+      if (!Array.isArray(plugin) || typeof plugin[0] !== "string" || !isHarnessPlugin(plugin[0])) continue
       const configured = (config.plugin ?? []).find((entry) => Array.isArray(entry) && entry[0] === plugin[0])
       if (configured) updated = updated.slice(0, start) + JSON.stringify(configured) + updated.slice(end)
     }

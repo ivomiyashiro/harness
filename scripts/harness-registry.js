@@ -35,15 +35,47 @@ export function registryRevision(content) {
   return createHash("sha256").update(content).digest("hex");
 }
 
+function processIsAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === "EPERM";
+  }
+}
+
+async function removeStaleLock(lockPath) {
+  let metadata;
+  try {
+    metadata = JSON.parse(await readFile(lockPath, "utf8"));
+  } catch {
+    return false;
+  }
+  if (!Number.isSafeInteger(metadata.pid) || metadata.pid <= 0 || processIsAlive(metadata.pid)) return false;
+
+  const stalePath = `${lockPath}.stale.${process.pid}.${randomUUID()}`;
+  try {
+    await rename(lockPath, stalePath);
+    await rm(stalePath, { force: true });
+    return true;
+  } catch (error) {
+    if (error.code === "ENOENT") return false;
+    throw error;
+  }
+}
+
 async function acquireLock(lockPath, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   while (true) {
     try {
-      return await open(lockPath, "wx");
+      const lock = await open(lockPath, "wx");
+      await lock.writeFile(JSON.stringify({ pid: process.pid }));
+      return lock;
     } catch (error) {
       if (error.code !== "EEXIST" || Date.now() >= deadline) {
         throw new Error(`Unable to acquire registry lock: ${error.message}`);
       }
+      await removeStaleLock(lockPath);
       await wait(10);
     }
   }

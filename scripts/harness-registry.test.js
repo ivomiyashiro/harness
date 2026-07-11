@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -59,4 +60,45 @@ test("lock serializes concurrent writers and preserves every distinct entry", as
 
   const entries = (await readFile(registryPath, "utf8")).trim().split("\n").sort();
   assert.deepEqual(entries, Array.from({ length: 8 }, (_, index) => `feature-${index}`).sort());
+});
+
+test("recovers a dead writer lock without stealing a live writer lock", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "registry-"));
+  const registryPath = path.join(directory, "_active.md");
+  const readyPath = path.join(directory, "ready");
+  await writeFile(registryPath, "original\n");
+
+  const moduleUrl = new URL("./harness-registry.js", import.meta.url).href;
+  const child = spawn(process.execPath, ["--input-type=module", "-e", `
+    import { writeFile } from "node:fs/promises";
+    import { updateRegistry } from ${JSON.stringify(moduleUrl)};
+    await updateRegistry({
+      registryPath: ${JSON.stringify(registryPath)},
+      defaultBranch: "trunk",
+      transform: async () => {
+        await writeFile(${JSON.stringify(readyPath)}, "ready");
+        setInterval(() => {}, 1000);
+        await new Promise(() => {});
+      },
+    });
+  `], { stdio: "ignore" });
+
+  while (true) {
+    try { await readFile(readyPath); break; } catch { await new Promise((resolve) => setTimeout(resolve, 10)); }
+  }
+
+  const liveAttempt = updateRegistry({
+    registryPath,
+    defaultBranch: "trunk",
+    content: "must-not-win\n",
+    lockTimeoutMs: 40,
+  });
+  await assert.rejects(liveAttempt, /Unable to acquire registry lock/);
+  assert.equal(await readFile(registryPath, "utf8"), "original\n");
+
+  child.kill("SIGKILL");
+  await new Promise((resolve) => child.once("close", resolve));
+  const recovered = await updateRegistry({ registryPath, defaultBranch: "trunk", content: "recovered\n" });
+  assert.equal(recovered.status, "updated");
+  assert.equal(await readFile(registryPath, "utf8"), "recovered\n");
 });
