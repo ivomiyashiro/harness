@@ -189,3 +189,64 @@ next: implement
   assert.match(result.stdout, /FAIL stale-approval: approval revision mismatch for plan: expected 4, got 3/)
   assert.equal(readFileSync(join(root, "docs/state/stale-approval.md"), "utf8"), before)
 })
+
+test("AC-2 doctor rejects unknown and positional arguments", () => {
+  const root = fixture()
+
+  for (const args of [["--unknown"], ["../outside"], ["--fix", "extra"]]) {
+    const result = runDoctor(root, ...args)
+    assert.notEqual(result.status, 0)
+    assert.match(result.stderr, /Usage: harness-doctor\.js \[--fix\]/)
+  }
+})
+
+test("AC-12 --fix reports no repair when nothing changed", () => {
+  const root = fixture()
+
+  const result = runDoctor(root, "--fix")
+
+  assert.equal(result.status, 0)
+  assert.doesNotMatch(result.stdout, /^FIX /m)
+})
+
+test("AC-13 --fix rejects unsafe state instead of fabricating a repair", () => {
+  const root = fixture()
+  writeState(root, "unsafe", `
+feature: ../unsafe
+mode: full
+phase: plan
+branch: feature/unsafe
+next: implement
+`)
+  const path = join(root, "docs/state/unsafe.md")
+  const before = readFileSync(path, "utf8")
+
+  const result = runDoctor(root, "--fix")
+
+  assert.notEqual(result.status, 0)
+  assert.match(result.stdout, /FAIL unsafe: invalid feature/)
+  assert.doesNotMatch(result.stdout, /^FIX /m)
+  assert.equal(readFileSync(path, "utf8"), before)
+})
+
+test("AC-12 --fix changes only the Harness plugin tuple", () => {
+  const root = fixture()
+  const configPath = join(root, "opencode.json")
+  const unrelated = { defaultModel: "vendor/model", models: { explorer: "vendor/explorer" }, keep: [1, 2] }
+  writeFileSync(configPath, `${JSON.stringify({
+    model: "vendor/root",
+    plugin: [
+      ["unrelated-plugin", unrelated],
+      ["opencode-harness", { defaultModel: "copenai/gpt-5.6-terra", models: {} }],
+    ],
+  }, null, 2)}\n`)
+
+  const result = runDoctor(root, "--fix")
+  const config = JSON.parse(readFileSync(configPath, "utf8"))
+
+  assert.equal(result.status, 0)
+  assert.match(result.stdout, /FIX opencode\.json/)
+  assert.deepEqual(config.plugin[0][1], unrelated)
+  assert.equal(config.model, "vendor/root")
+  assert.equal(config.plugin[1][1].defaultModel, "openai/gpt-5.6-terra")
+})

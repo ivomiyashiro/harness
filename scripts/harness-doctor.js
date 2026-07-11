@@ -5,7 +5,12 @@ import { spawnSync } from "node:child_process"
 import { checkTransition } from "./harness-state.js"
 
 const root = process.cwd()
-const fix = process.argv.includes("--fix")
+const args = process.argv.slice(2)
+if (args.length > 1 || (args.length === 1 && args[0] !== "--fix")) {
+  console.error("Usage: harness-doctor.js [--fix]")
+  process.exit(2)
+}
+const fix = args[0] === "--fix"
 
 const errors = []
 const warnings = []
@@ -74,6 +79,10 @@ function doctorState(feature, state) {
   const versioned = state.state_version !== undefined
   const revision = Number(state.revision ?? 0)
   const checkpoints = parseCheckpoints(state.checkpoints)
+
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(state.feature ?? "") || state.feature !== feature) {
+    add("error", `${feature}: invalid feature: ${state.feature ?? "missing"}`)
+  }
 
   if (!legalPhases.has(state.phase)) add("error", `${feature}: invalid phase: ${state.phase ?? "missing"}`)
 
@@ -153,7 +162,7 @@ function checkModels() {
   const file = "opencode.json"
   if (!existsSync(path(file))) return
 
-  let raw = read(file)
+  const raw = read(file)
   let config
   try {
     config = JSON.parse(raw)
@@ -177,13 +186,10 @@ function checkModels() {
   let changed = false
   if (config.model && !String(config.model).startsWith("openai/gpt-5.6-")) {
     add("warning", `root model is not gpt-5.6 tier: ${config.model}`)
-    if (fix) {
-      config.model = "openai/gpt-5.6-sol"
-      changed = true
-    }
   }
 
   for (const plugin of config.plugin ?? []) {
+    if (!Array.isArray(plugin) || typeof plugin[0] !== "string" || !plugin[0].includes("harness")) continue
     const options = Array.isArray(plugin) ? plugin[1] : undefined
     if (!options || typeof options !== "object") continue
     if (options.defaultModel !== expected.defaultModel) {
@@ -193,22 +199,18 @@ function checkModels() {
         changed = true
       }
     }
-    options.models ??= {}
+    const models = options.models
     for (const [agent, model] of Object.entries(expected)) {
       if (agent === "defaultModel") continue
-      if (options.models[agent] !== model) {
-        add("warning", `${agent} model expected ${model}, got ${options.models[agent] ?? "missing"}`)
+      if (models?.[agent] !== model) {
+        add("warning", `${agent} model expected ${model}, got ${models?.[agent] ?? "missing"}`)
         if (fix) {
+          options.models ??= {}
           options.models[agent] = model
           changed = true
         }
       }
     }
-  }
-
-  if (raw.includes("copenai/")) {
-    add("error", "invalid provider id found: copenai/")
-    if (fix) changed = true
   }
 
   if (fix && changed) write(file, `${JSON.stringify(config, null, 2)}\n`)
