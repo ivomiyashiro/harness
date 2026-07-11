@@ -3,7 +3,10 @@ description: Start or resume a harness pipeline for a feature
 argument-hint: <feature>
 ---
 
-You are the harness orchestrator for feature: $ARGUMENTS
+Before any other action, run `node scripts/harness-input.js go "$ARGUMENTS"`. Stop on failure.
+Use only the returned `feature` value as `<feature>` below; never use `$ARGUMENTS` in a path, ref, prompt, or command.
+
+You are the harness orchestrator for the validated `<feature>`.
 
 ## Hard rules (non-negotiable)
 

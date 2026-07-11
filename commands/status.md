@@ -5,7 +5,9 @@ argument-hint: [feature]
 
 Read-only. No dispatching, no writes.
 
-1. If a feature is given: read `docs/state/$ARGUMENTS.md` and report it.
+Before any other action, pass the supplied argument, if any, as explicit argv to `node scripts/harness-input.js status`. Stop on failure. Use only its returned `feature`; never use raw `$ARGUMENTS` in a path or command.
+
+1. If a validated feature is returned: read `docs/state/<feature>.md` and report it.
 2. Else: read `docs/state/_active.md` if it exists, then glob `docs/state/*.md` (skip `_active.md`, include `epic-*.md`) to fill any missing details. Print a compact table:
 
 ```
