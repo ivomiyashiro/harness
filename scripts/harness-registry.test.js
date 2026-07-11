@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, utimes, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
@@ -122,5 +122,22 @@ test("recovers a dead writer lock without stealing a live writer lock", async ()
   await new Promise((resolve) => child.once("close", resolve));
   const recovered = await updateRegistry({ registryPath, defaultBranch: "trunk", content: "recovered\n" });
   assert.equal(recovered.status, "updated");
+  assert.equal(await readFile(registryPath, "utf8"), "recovered\n");
+});
+
+test("FR-7 recovers an old malformed interruption lock but not a fresh creator lock", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "registry-lock-"));
+  const registryPath = path.join(directory, "_active.md");
+  const lockPath = `${registryPath}.lock`;
+  await writeFile(registryPath, "original\n");
+  await writeFile(lockPath, "");
+
+  await assert.rejects(updateRegistry({ registryPath, defaultBranch: "trunk", content: "unsafe\n", lockTimeoutMs: 30, staleLockMs: 1000 }), /Unable to acquire/);
+  assert.equal(await readFile(registryPath, "utf8"), "original\n");
+
+  const old = new Date(Date.now() - 2000);
+  await utimes(lockPath, old, old);
+  const result = await updateRegistry({ registryPath, defaultBranch: "trunk", content: "recovered\n", staleLockMs: 1000 });
+  assert.equal(result.status, "updated");
   assert.equal(await readFile(registryPath, "utf8"), "recovered\n");
 });

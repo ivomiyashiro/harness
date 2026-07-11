@@ -195,6 +195,12 @@ function checkModels() {
     || spec === harnessIndex
     || spec === pathToFileURL(harnessIndex).href
 
+  const harnessPlugins = (config.plugin ?? []).filter((plugin) => Array.isArray(plugin) && typeof plugin[0] === "string" && isHarnessPlugin(plugin[0]))
+  if (harnessPlugins.length > 1) {
+    add("error", "ambiguous duplicate Harness plugin tuples")
+    return
+  }
+
   for (const plugin of config.plugin ?? []) {
     if (!Array.isArray(plugin) || typeof plugin[0] !== "string" || !isHarnessPlugin(plugin[0])) continue
     const options = Array.isArray(plugin) ? plugin[1] : undefined

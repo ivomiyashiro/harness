@@ -23,7 +23,7 @@ On any route back, reset affected downstream state only: tasks, judge results, v
 ## Finish (all gates passed: judges clean, runtime smoke passed, manual checklist OK when present)
 
 1. Final commit on the feature branch (`rtk git add`, `rtk git commit`) if anything is pending; record the commit checkpoint.
-2. Remove the feature's line from `docs/state/_active.md` on main and commit there; record the registry checkpoint.
+2. Remove the feature's line from `docs/state/_active.md` through `node <harness>/scripts/harness-workflow.js update-registry --registry docs/state/_active.md --content-file <candidate-file> --expected-revision <revision>` and commit the successful atomic update on the resolved default branch; on `stale-revision`, reread and retry the removal. Record the registry checkpoint.
 3. Run `/harness:doctor --fix` or `node <harness>/scripts/harness-doctor.js --fix` before final reporting. If it changes `_active.md`, include that in the final commit/update; record the cleanup checkpoint.
 4. Only after verification passed and the commit, registry, and cleanup checkpoints succeed, write `phase: done`. If any checkpoint is incomplete, keep the finalization phase and resume from the first incomplete checkpoint.
 5. Tell the user: branch ready for their next directed step. Do not create or recommend PRs unless the user explicitly asks.

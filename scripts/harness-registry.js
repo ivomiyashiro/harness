@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { open, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { open, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { runHarnessProcess } from "./harness-process.js";
 
@@ -48,14 +48,22 @@ function processIsAlive(pid) {
   }
 }
 
-async function removeStaleLock(lockPath) {
+async function removeStaleLock(lockPath, staleLockMs) {
   let metadata;
   try {
     metadata = JSON.parse(await readFile(lockPath, "utf8"));
   } catch {
-    return false;
+    let age;
+    try {
+      age = Date.now() - (await stat(lockPath)).mtimeMs;
+    } catch (error) {
+      if (error.code === "ENOENT") return false;
+      throw error;
+    }
+    if (age < staleLockMs) return false;
+    metadata = null;
   }
-  if (!Number.isSafeInteger(metadata.pid) || metadata.pid <= 0 || processIsAlive(metadata.pid)) return false;
+  if (metadata && (!Number.isSafeInteger(metadata.pid) || metadata.pid <= 0 || processIsAlive(metadata.pid))) return false;
 
   const stalePath = `${lockPath}.stale.${process.pid}.${randomUUID()}`;
   try {
@@ -68,7 +76,7 @@ async function removeStaleLock(lockPath) {
   }
 }
 
-async function acquireLock(lockPath, timeoutMs) {
+async function acquireLock(lockPath, timeoutMs, staleLockMs) {
   const deadline = Date.now() + timeoutMs;
   while (true) {
     try {
@@ -79,7 +87,7 @@ async function acquireLock(lockPath, timeoutMs) {
       if (error.code !== "EEXIST" || Date.now() >= deadline) {
         throw new Error(`Unable to acquire registry lock: ${error.message}`);
       }
-      await removeStaleLock(lockPath);
+      await removeStaleLock(lockPath, staleLockMs);
       await wait(10);
     }
   }
@@ -93,12 +101,13 @@ export async function updateRegistry({
   defaultBranch,
   git,
   lockTimeoutMs = 5000,
+  staleLockMs = 30000,
 }) {
   const gitRunner = git ?? runGit;
   const branch = defaultBranch ?? await resolveDefaultBranch({ git: gitRunner });
   const targetPath = defaultBranch ? registryPath : await registryPathOnBranch(registryPath, branch, gitRunner);
   const lockPath = `${targetPath}.lock`;
-  const lock = await acquireLock(lockPath, lockTimeoutMs);
+  const lock = await acquireLock(lockPath, lockTimeoutMs, staleLockMs);
   const temporaryPath = `${targetPath}.${process.pid}.${randomUUID()}.tmp`;
   try {
     let current;

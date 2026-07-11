@@ -18,7 +18,7 @@ You are the harness orchestrator for the validated `<feature>`.
 
 ## Entry
 
-1. If `docs/state/<feature>.md` exists → RESUME: read it, then validate its persisted canonical `worktree` and `branch` against the current real worktree and branch using `scripts/harness-state.js`. On any unsafe value or mismatch, stop before modifying state or Git and tell the user which persisted worktree and branch to open. Otherwise announce `<feature>: <mode>, phase <phase>, next <item>` and continue from there. Never re-ask anything the state or existing artifacts already answer.
+1. If `docs/state/<feature>.md` exists → RESUME: read it, then before any mutation invoke `node "__HARNESS_ROOT__/scripts/harness-workflow.js" resume-identity --state <identity-json-path> --repository <repository-root>` from the current worktree, where the JSON contains the persisted canonical `worktree` and `branch`. On failure, stop before modifying state or Git and tell the user which persisted worktree and branch to open. Otherwise announce `<feature>: <mode>, phase <phase>, next <item>` and continue from there. Never re-ask anything the state or existing artifacts already answer.
 2. Else → AUTO-TRIAGE: choose ONE mode from the user's request. Do NOT ask the user to pick or confirm a mode.
    - Explicit override wins: if the user says `mode: hotfix`, `mode: lite`, `mode: full`, `mode: epic`, or plainly asks for one of those modes, use it.
    - `hotfix` — urgent production bug, regression, crash, security fix, or tiny breakage with a clear expected behavior: plan → user go-ahead → implement + regression test → done.

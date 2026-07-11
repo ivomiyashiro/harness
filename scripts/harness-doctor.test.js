@@ -269,3 +269,20 @@ test("AC-12 --fix ignores adversarial plugin names containing harness", () => {
   assert.deepEqual(config.plugin[0][1], adversarial)
   assert.equal(config.plugin[1][1].defaultModel, "openai/gpt-5.6-terra")
 })
+
+test("AC-13 duplicate Harness plugin tuples are rejected and never rewritten", () => {
+  const root = fixture()
+  const configPath = join(root, "opencode.json")
+  const original = `${JSON.stringify({ plugin: [
+    ["opencode-harness", { defaultModel: "wrong-one" }],
+    ["opencode-harness@latest", { defaultModel: "wrong-two" }],
+  ] }, null, 2)}\n`
+  writeFileSync(configPath, original)
+
+  const result = runDoctor(root, "--fix")
+
+  assert.notEqual(result.status, 0)
+  assert.match(result.stdout, /FAIL ambiguous duplicate Harness plugin tuples/)
+  assert.doesNotMatch(result.stdout, /^FIX /m)
+  assert.equal(readFileSync(configPath, "utf8"), original)
+})
