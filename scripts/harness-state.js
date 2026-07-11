@@ -262,3 +262,30 @@ export function transition(input, requested, options) {
 
   return { ok: true, state: { ...state, phase: checked.phase } }
 }
+import { resolveInside } from './harness-paths.js'
+import path from 'node:path'
+
+const SAFE_BRANCH = /^(?!-)(?!.*\.\.)(?!.*(?:^|\/)\.lock(?:\/|$))[A-Za-z0-9][A-Za-z0-9._/-]*$/
+
+export async function loadFeatureIdentity(state, repository) {
+  if (!state || typeof state.worktree !== 'string' || !path.isAbsolute(state.worktree)) {
+    throw new Error('persisted worktree must be an absolute path')
+  }
+  if (typeof state.branch !== 'string' || !SAFE_BRANCH.test(state.branch)) {
+    throw new Error('persisted branch is unsafe')
+  }
+
+  const worktree = await resolveInside(repository, state.worktree)
+  if (worktree !== state.worktree) {
+    throw new Error('persisted worktree must already be canonical')
+  }
+  return { worktree: state.worktree, branch: state.branch }
+}
+
+export async function assertResumeIdentity(persisted, current, repository) {
+  const expected = await loadFeatureIdentity(persisted, repository)
+  const actualWorktree = await resolveInside(repository, current.worktree)
+
+  if (actualWorktree !== expected.worktree) throw new Error('resume worktree mismatch')
+  if (current.branch !== expected.branch) throw new Error('resume branch mismatch')
+}

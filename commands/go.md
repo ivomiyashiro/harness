@@ -18,7 +18,7 @@ You are the harness orchestrator for the validated `<feature>`.
 
 ## Entry
 
-1. If `docs/state/<feature>.md` exists → RESUME: read it, announce `<feature>: <mode>, phase <phase>, next <item>`, continue from there. Never re-ask anything the state or existing artifacts already answer.
+1. If `docs/state/<feature>.md` exists → RESUME: read it, then validate its persisted canonical `worktree` and `branch` against the current real worktree and branch using `scripts/harness-state.js`. On any unsafe value or mismatch, stop before modifying state or Git and tell the user which persisted worktree and branch to open. Otherwise announce `<feature>: <mode>, phase <phase>, next <item>` and continue from there. Never re-ask anything the state or existing artifacts already answer.
 2. Else → AUTO-TRIAGE: choose ONE mode from the user's request. Do NOT ask the user to pick or confirm a mode.
    - Explicit override wins: if the user says `mode: hotfix`, `mode: lite`, `mode: full`, `mode: epic`, or plainly asks for one of those modes, use it.
    - `hotfix` — urgent production bug, regression, crash, security fix, or tiny breakage with a clear expected behavior: plan → user go-ahead → implement + regression test → done.
@@ -45,7 +45,7 @@ Phase order in `full` is enforced — no skipping. `hotfix`/`lite` skip brainsto
 
 ## Worktree protocol
 
-New feature in `full`/`epic` mode: create an isolated worktree + branch inside the current repo before any artifact is written (`rtk git worktree add .worktrees/<feature> -b feat/<feature>`). Worktrees live under `.worktrees/`, which must be gitignored, and the feature's state lives in its branch. One spec = one worktree = one branch = one session. On resume, verify you are in the feature's worktree (branch matches); if not, tell the user which worktree to open. `hotfix` may run in place.
+New feature in `full`/`epic` mode: create an isolated worktree + branch inside the current repo before any artifact is written (`rtk git worktree add .worktrees/<feature> -b feat/<feature>`). Resolve the repository and worktree to real paths, reject paths outside the repository boundary, and persist the canonical absolute `worktree` and exact `branch` in feature state. Worktrees live under `.worktrees/`, which must be gitignored, and the feature's state lives in its branch. One spec = one worktree = one branch = one session. On resume, require both identities to match before any mutation; never silently normalize persisted identity. `hotfix` may run in place.
 
 ## Learnings
 

@@ -372,3 +372,42 @@ test("AC-9 judge re-runs both reviewers on cumulative fixer diff", () => {
   assert.match(docs, /cumulative diff/i)
   assert.match(docs, /approved baseline.*fixer commit/is)
 })
+import { mkdtemp, mkdir, realpath } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+
+import { assertResumeIdentity, loadFeatureIdentity } from './harness-state.js'
+
+test('preserves safe persisted worktree and branch identity', async () => {
+  const repo = await mkdtemp(path.join(tmpdir(), 'harness-state-'))
+  let worktree = path.join(repo, '.worktrees', 'safe-feature')
+  await mkdir(worktree, { recursive: true })
+  worktree = await realpath(worktree)
+  const canonicalRepo = await realpath(repo)
+  const state = { worktree, branch: 'feat/safe-feature' }
+
+  assert.deepEqual(await loadFeatureIdentity(state, canonicalRepo), state)
+  await assert.doesNotReject(assertResumeIdentity(state, { worktree, branch: state.branch }, canonicalRepo))
+})
+
+test('rejects unsafe or ambiguous persisted identity without normalizing it', async () => {
+  const repo = await mkdtemp(path.join(tmpdir(), 'harness-state-'))
+
+  await assert.rejects(loadFeatureIdentity({ worktree: '../escape', branch: 'feat/safe' }, repo), /worktree/)
+  await assert.rejects(loadFeatureIdentity({ worktree: repo, branch: '--force' }, repo), /branch/)
+})
+
+test('rejects resume worktree and branch mismatches', async () => {
+  const repo = await mkdtemp(path.join(tmpdir(), 'harness-state-'))
+  let worktree = path.join(repo, '.worktrees', 'safe-feature')
+  let other = path.join(repo, '.worktrees', 'other')
+  await mkdir(worktree, { recursive: true })
+  await mkdir(other, { recursive: true })
+  worktree = await realpath(worktree)
+  other = await realpath(other)
+  const canonicalRepo = await realpath(repo)
+  const persisted = { worktree, branch: 'feat/safe-feature' }
+
+  await assert.rejects(assertResumeIdentity(persisted, { worktree: other, branch: persisted.branch }, canonicalRepo), /worktree mismatch/)
+  await assert.rejects(assertResumeIdentity(persisted, { worktree, branch: 'feat/other' }, canonicalRepo), /branch mismatch/)
+})
