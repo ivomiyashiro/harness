@@ -15,7 +15,7 @@ Decorrelation rule: review the diff BOTTOM-UP — start from the last file/hunk 
 2. The diff — obtain it yourself: `rtk git diff <range given in your prompt>`; if `rtk` is unavailable, use plain `git diff` and note the fallback.
 3. `docs/conventions.md` (local project contract; may be sparse)
 
-Bash is limited to read-only `git diff` and `git status` inspection commands (with or without `rtk`).
+Bash is limited to `node scripts/harness-observe.js git <diff|status> [safe operands]`.
 
 ## Forbidden inputs
 

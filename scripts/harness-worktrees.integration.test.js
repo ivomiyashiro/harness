@@ -5,6 +5,7 @@ import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { spawn, spawnSync } from "node:child_process"
+import { runParallelTasks } from "./harness-worktrees.js"
 
 function git(cwd, ...args) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8" })
@@ -62,4 +63,26 @@ test("AC-5 concurrent tasks use isolated indexes and integrate uncontaminated co
   assert.deepEqual(result.taskOneFiles, ["task-one.txt"])
   assert.deepEqual(result.taskTwoFiles, ["task-two.txt"])
   assert.deepEqual(result.integratedFiles, ["task-one.txt", "task-two.txt"])
+})
+
+test("AC-5 creates task worktrees from a linked feature worktree", async () => {
+  const root = mkdtempSync(join(tmpdir(), "harness-linked-feature-"))
+  const feature = `${root}-feature`
+  git(root, "init", "-b", "base")
+  git(root, "config", "user.name", "Harness Test")
+  git(root, "config", "user.email", "harness@example.test")
+  git(root, "commit", "--allow-empty", "-m", "base")
+  git(root, "worktree", "add", "-b", "feature/linked", feature)
+
+  const seen = []
+  const result = await runParallelTasks({
+    repo: feature,
+    tasks: ["one", "two"],
+    runTask: async (_task, worktree) => seen.push(worktree),
+  })
+
+  assert.equal(result.mode, "isolated")
+  assert.equal(new Set(seen).size, 2)
+  assert.equal(git(feature, "rev-parse", "--is-inside-work-tree"), "true")
+  for (const worktree of seen) assert.equal(git(worktree, "rev-parse", "--is-inside-work-tree"), "true")
 })

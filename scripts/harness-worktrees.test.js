@@ -39,7 +39,7 @@ test('runChild enforces timeout and cleans up exactly once', async () => {
   assert.equal(cleanups, 1);
 });
 
-test('parallel tasks use distinct worktrees and fall back when isolation fails', async () => {
+test('parallel tasks use distinct worktrees and report isolation failure', async () => {
   const repo = await tempRepo();
   const seen = [];
   const isolated = await runParallelTasks({
@@ -49,13 +49,10 @@ test('parallel tasks use distinct worktrees and fall back when isolation fails',
   assert.equal(new Set(seen.map(([, worktree]) => worktree)).size, 2);
   assert.equal(isolated.mode, 'isolated');
 
-  const fallbackSeen = [];
-  const fallback = await runParallelTasks({
+  await assert.rejects(runParallelTasks({
     repo, tasks: ['09', '10'], createWorktree: async () => { throw new Error('no space'); },
-    runTask: async (task, worktree) => fallbackSeen.push([task, worktree]),
-  });
-  assert.deepEqual(fallbackSeen, [['09', repo], ['10', repo]]);
-  assert.equal(fallback.mode, 'sequential');
+    runTask: async () => assert.fail('task must not run without isolation'),
+  }), /task worktree isolation failed: no space/);
 });
 
 test('serial integration records progress and resume skips integrated commits', async () => {

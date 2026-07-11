@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, realpath, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 export function runChild(command, args, options = {}) {
@@ -31,7 +31,13 @@ export function runChild(command, args, options = {}) {
 }
 
 async function defaultCreateWorktree(repo, task) {
-  const root = path.join(repo, '.git', 'harness-task-worktrees');
+  const commonDirOutput = await runChild(
+    'git',
+    ['rev-parse', '--path-format=absolute', '--git-common-dir'],
+    { cwd: repo },
+  );
+  const commonDir = await realpath(commonDirOutput.stdout.trim());
+  const root = path.join(commonDir, 'harness-task-worktrees');
   await mkdir(root, { recursive: true });
   const worktree = path.join(root, `${task}-${process.pid}-${Date.now()}`);
   const branch = `harness-task-${task}-${process.pid}-${Date.now()}`;
@@ -43,13 +49,11 @@ export async function runParallelTasks({ repo, tasks, runTask, createWorktree = 
   const worktrees = [];
   try {
     for (const task of tasks) worktrees.push(await createWorktree(repo, task));
-  } catch {
+  } catch (error) {
     for (const worktree of worktrees) {
       await runChild('git', ['worktree', 'remove', '--force', worktree], { cwd: repo }).catch(() => {});
     }
-    const results = [];
-    for (const task of tasks) results.push(await runTask(task, repo));
-    return { mode: 'sequential', results };
+    throw new Error(`task worktree isolation failed: ${error.message}`, { cause: error });
   }
 
   const results = await Promise.all(tasks.map((task, index) => runTask(task, worktrees[index])));

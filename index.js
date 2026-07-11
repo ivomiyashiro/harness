@@ -4,11 +4,12 @@ import { fileURLToPath } from "node:url"
 
 const root = dirname(fileURLToPath(import.meta.url))
 
+const observeWrapper = `${process.execPath} ${join(root, "scripts", "harness-observe.js")}`
 const observeOnlyBashAllowlists = {
-  explorer: ["git diff *", "git log *", "git show *", "git status *", "rtk git diff *", "rtk git log *", "rtk git show *", "rtk git status *"],
-  "judge-a": ["git diff *", "git status *", "rtk git diff *", "rtk git status *"],
-  "judge-b": ["git diff *", "git status *", "rtk git diff *", "rtk git status *"],
-  verifier: ["node --test *", "bun test *", "cargo run *", "cargo test *", "pytest *", "flutter run *", "flutter test *", "dart run *", "curl *", "rtk node --test *", "rtk bun test *", "rtk cargo run *", "rtk cargo test *", "rtk pytest *", "rtk flutter run *", "rtk flutter test *", "rtk dart run *", "rtk curl *"],
+  explorer: [`${observeWrapper} git *`],
+  "judge-a": [`${observeWrapper} git *`],
+  "judge-b": [`${observeWrapper} git *`],
+  verifier: ["node-test", "bun-test", "cargo-run", "cargo-test", "pytest", "flutter-run", "flutter-test", "dart-run", "curl-get"].map((profile) => `${observeWrapper} ${profile} *`),
 }
 
 const harnessAgentPrompt = `You are Harness, the primary opencode agent for the Harness pipeline.
@@ -76,6 +77,10 @@ function permissionFromTools(tools, agentName) {
       ["* >> *", "deny"],
       ["* < *", "deny"],
       ["* | *", "deny"],
+      ["*;*", "deny"],
+      ["*&&*", "deny"],
+      ["*$(*", "deny"],
+      ["*`*", "deny"],
     ])
   }
 
