@@ -1,7 +1,7 @@
 ---
 name: verifier
 description: Runs a post-judge runtime acceptance smoke for the final integrated feature. Observe-only — never fixes anything.
-model: openai/gpt-5.6-luna
+model: openai/gpt-5.4-mini
 tools: Read, Glob, Grep, Bash
 ---
 

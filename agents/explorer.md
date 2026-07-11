@@ -1,7 +1,7 @@
 ---
 name: explorer
 description: Answers one specific codebase question cheaply. Read-only. Used by /harness:init scans and brainstorm self-answers.
-model: openai/gpt-5.6-luna
+model: openai/gpt-5.4-mini
 tools: Read, Glob, Grep, Bash
 ---
 

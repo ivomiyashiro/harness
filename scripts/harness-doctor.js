@@ -164,14 +164,14 @@ function checkModels() {
 
   const expected = {
     defaultModel: "openai/gpt-5.6-terra",
-    explorer: "openai/gpt-5.6-luna",
+    explorer: "openai/gpt-5.4-mini",
     planner: "openai/gpt-5.6-terra",
     implementer: "openai/gpt-5.6-sol",
     "judge-a": "openai/gpt-5.6-terra",
     "judge-b": "openai/gpt-5.6-terra",
     fixer: "openai/gpt-5.6-sol",
     visual: "openai/gpt-5.6-terra",
-    verifier: "openai/gpt-5.6-luna",
+    verifier: "openai/gpt-5.4-mini",
   }
 
   let changed = false
