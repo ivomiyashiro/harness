@@ -11,7 +11,7 @@ requirements:
 - FR-5: Update the active registry and workflow state atomically with lock or compare-and-swap semantics so concurrent sessions cannot lose another session's update.
 - FR-6: Resolve the repository default branch instead of assuming main and fail safely when it cannot be determined.
 - FR-7: Make interrupted registry, state, worktree, and integration operations resumable without duplicate commits, partial state, stale locks, or deletion of completed work.
-- FR-8: Enforce read-only agent permissions at the tool boundary, including denial of indirect writes through unrestricted Bash while allowing the commands required for inspection and runtime verification.
+- FR-8: Allow every agent to read and inspect any repository file needed to complete its bounded assignment without plan-maintained read allowlists; keep edit responsibility role-based so explorers, judges, and verifiers remain observe-only by instruction and edit-tool permission.
 - FR-9: Execute child processes with explicit argv, bounded timeouts, checked exit status, and guaranteed cleanup instead of interpolated shell commands.
 - FR-10: Restrict doctor fixes to deterministic Harness-owned configuration and state; never rewrite options for unrelated plugins or fabricate repairs it did not perform.
 - FR-11: Preserve existing valid state files and plugin configuration while producing actionable errors for unsafe or ambiguous legacy values.
@@ -26,11 +26,12 @@ AC-6 [integration]: Given one parallel task fails or conflicts during serial int
 AC-7 [integration]: Given at least eight concurrent registry writers with distinct feature entries When all updates complete Then every entry is present exactly once and the registry remains parseable.
 AC-8 [integration]: Given two writers start from the same state revision When both attempt incompatible updates Then one succeeds and the other receives a stale-revision result without overwriting the winner.
 AC-9 [unit]: Given a repository whose default branch is not main When registry operations run Then they use the resolved default branch; given no unambiguous default branch Then they stop with an actionable error before writing.
-AC-10 [unit]: Given explorer, judge, or verifier agent configuration When permissions are registered Then edit is denied and Bash cannot execute filesystem mutation, Git mutation, shell redirection, or arbitrary commands outside the agent's inspection/runtime allowlist.
+AC-10 [unit]: Given explorer, judge, verifier, fixer, or implementer configuration When an agent needs repository context Then reads, searches, and inspection commands are available without a task-specific file allowlist; explorer, judge, and verifier still have edit denied, while fixer and implementer retain bounded edit responsibility.
 AC-11 [unit]: Given a child process started by Harness When it exits non-zero, hangs, or the parent operation fails Then the error is propagated, timeout is enforced, and cleanup executes exactly once.
 AC-12 [integration]: Given OpenCode configuration containing Harness and unrelated plugin tuples When doctor --fix runs Then only the identified Harness tuple and deterministic Harness state repairs may change, unrelated plugin options remain byte-equivalent, and every reported repair corresponds to an actual change.
 AC-13 [unit]: Given an existing safe unversioned state or valid Harness configuration When concurrency/security validation loads it Then its values are preserved; unsafe ambiguous values are rejected rather than silently normalized into authority.
 AC-14 [unit]: Given changed configuration, state contracts, and tests When this feature is complete Then no token telemetry, budget, or analysis behavior has been introduced.
+AC-15 [unit]: Given a task whose plan omits a useful read-files entry or references an absent optional conventions file When the assigned agent can discover the required repository context safely Then it continues using minimal targeted exploration instead of stopping solely because the read allowlist is incomplete.
 
 pattern: commands/go.md for feature worktree and resume boundaries
 pattern: skills/write-plan/SKILL.md for active-registry coordination
