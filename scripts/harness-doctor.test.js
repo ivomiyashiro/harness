@@ -159,3 +159,33 @@ next: implement
   assert.match(result.stdout, /FAIL bad: invalid approval evidence for plan/)
   assert.equal(readFileSync(join(invalid, "docs/state/bad.md"), "utf8"), before)
 })
+
+test("AC-12 stale approval evidence is actionable and non-mutating", () => {
+  const root = fixture()
+  writePlan(root, "stale-approval")
+  writeState(root, "stale-approval", `
+state_version: 1
+feature: stale-approval
+mode: lite
+phase: implement
+branch: feature/stale-approval
+worktree: ${root}
+spec: docs/specs/stale-approval.md
+plan: docs/plans/stale-approval/plan.md
+tasks: pending 1
+globs: none
+approvals: plan rev 3 by human at 2026-07-11T00:00:00Z evidence approved
+judges: not-run
+checklist: none
+checkpoints: spec done, plan approved, visual not-required, implement pending, judge pending, verify pending, commit pending, registry pending, cleanup pending
+revision: 4
+next: implement
+`)
+  const before = readFileSync(join(root, "docs/state/stale-approval.md"), "utf8")
+
+  const result = runDoctor(root)
+
+  assert.notEqual(result.status, 0)
+  assert.match(result.stdout, /FAIL stale-approval: approval revision mismatch for plan: expected 4, got 3/)
+  assert.equal(readFileSync(join(root, "docs/state/stale-approval.md"), "utf8"), before)
+})

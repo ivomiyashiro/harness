@@ -54,6 +54,7 @@ function parseApprovals(feature, value = "", revision = 0) {
   for (const match of value.matchAll(pattern)) {
     const [, gate, rev, timestamp] = match
     if (Number.isNaN(Date.parse(timestamp))) add("error", `${feature}: invalid approval evidence for ${gate}`)
+    if (Number(rev) !== revision) add("error", `${feature}: approval revision mismatch for ${gate}: expected ${revision}, got ${rev}`)
     approvals[gate] = { gate, revision: Number(rev), approved: Number(rev) === revision }
   }
 
