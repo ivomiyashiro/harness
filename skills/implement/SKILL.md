@@ -18,7 +18,7 @@ Orchestrator-side. You dispatch; you never write code. Enter only through the ca
     - `docs/conventions.md`
     - `docs/learnings.md` (if it exists)
 4. Sequential case: launch ONE implementer for the next task.
-5. Parallel-safe case: if `plan.md` marks a group as parallel-safe and none of those task numbers are done/blocked, launch all tasks in that group in ONE message with multiple Agent calls. Do this only for an explicit group from the plan; never infer parallelism yourself.
+5. Parallel-safe case: if `plan.md` marks a group as parallel-safe and none of those task numbers are done/blocked, use `scripts/harness-worktrees.js` to give each task a distinct task worktree, then launch all tasks in that group in ONE message with multiple Agent calls. If worktree isolation cannot be established, run the group sequentially in the feature worktree. Integrate successful task commits serially and persist integration progress; on conflict stop with the exact pending commit, preserving task branches and completed integrations for resume. Do this only for an explicit group from the plan; never infer parallelism yourself.
 6. On caveman success report(s): update the state file (`tasks: done ...`) BEFORE dispatching the next task/group.
 7. On any failure report: STOP. Surface the raw error to the user. No silent retries — the user decides (retry / adjust task / skip). If parallel agents returned mixed results, mark successful tasks done and the failed task blocked.
 8. Repeat until tasks are exhausted → record the implementation checkpoint and write `phase: judge` to the state file. Resuming this completed transition is idempotent: do not re-run done tasks or discard completed work.
