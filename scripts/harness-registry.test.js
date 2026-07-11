@@ -7,6 +7,14 @@ import test from "node:test";
 
 import { resolveDefaultBranch, updateRegistry } from "./harness-registry.js";
 
+function sameWorktreeGit(directory, branch = "trunk") {
+  return async (args) => {
+    if (args[0] === "rev-parse") return `${directory}\n`;
+    if (args[0] === "worktree") return `worktree ${directory}\nbranch refs/heads/${branch}\n`;
+    throw new Error(`unexpected git call: ${args.join(" ")}`);
+  };
+}
+
 test("resolves and uses a non-main remote default branch", async () => {
   const calls = [];
   const git = async (args) => {
@@ -52,6 +60,26 @@ test("FR-6 resolved non-main branch selects the registry worktree actually writt
   assert.equal(await readFile(path.join(trunk, "docs/state/_active.md"), "utf8"), "updated\n");
 });
 
+test("FR-6 supplied default branch still selects that branch worktree", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "registry-supplied-"));
+  const feature = path.join(directory, "feature");
+  const trunk = path.join(directory, "trunk");
+  const { mkdir } = await import("node:fs/promises");
+  await Promise.all([mkdir(path.join(feature, "docs/state"), { recursive: true }), mkdir(path.join(trunk, "docs/state"), { recursive: true })]);
+  const registryPath = path.join(feature, "docs/state/_active.md");
+  const trunkRegistry = path.join(trunk, "docs/state/_active.md");
+  await Promise.all([writeFile(registryPath, "feature\n"), writeFile(trunkRegistry, "trunk\n")]);
+  const git = async (args) => {
+    if (args[0] === "rev-parse") return `${feature}\n`;
+    if (args[0] === "worktree") return `worktree ${feature}\nbranch refs/heads/feature\n\nworktree ${trunk}\nbranch refs/heads/trunk\n`;
+    throw new Error("unexpected git call");
+  };
+
+  await updateRegistry({ registryPath, defaultBranch: "trunk", content: "updated\n", git });
+  assert.equal(await readFile(registryPath, "utf8"), "feature\n");
+  assert.equal(await readFile(trunkRegistry, "utf8"), "updated\n");
+});
+
 test("ambiguous default branch fails before registry writes", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "registry-"));
   const registryPath = path.join(directory, "_active.md");
@@ -85,6 +113,7 @@ test("compare-and-swap rejects a stale revision without overwriting", async () =
     expectedRevision: "stale",
     content: "loser\n",
     defaultBranch: "trunk",
+    git: sameWorktreeGit(directory),
   });
 
   assert.equal(result.status, "stale-revision");
@@ -99,6 +128,7 @@ test("lock serializes concurrent writers and preserves every distinct entry", as
   await Promise.all(Array.from({ length: 8 }, (_, index) => updateRegistry({
     registryPath,
     defaultBranch: "trunk",
+    git: sameWorktreeGit(directory),
     transform: (current) => `${current}feature-${index}\n`,
   })));
 
@@ -119,13 +149,16 @@ test("recovers a dead writer lock without stealing a live writer lock", async ()
     await updateRegistry({
       registryPath: ${JSON.stringify(registryPath)},
       defaultBranch: "trunk",
+      git: async (args) => args[0] === "rev-parse"
+        ? ${JSON.stringify(`${directory}\n`)}
+        : ${JSON.stringify(`worktree ${directory}\nbranch refs/heads/trunk\n`)},
       transform: async () => {
         await writeFile(${JSON.stringify(readyPath)}, "ready");
         setInterval(() => {}, 1000);
         await new Promise(() => {});
       },
     });
-  `], { stdio: "ignore" });
+  `], { stdio: "ignore", cwd: directory });
 
   while (true) {
     try { await readFile(readyPath); break; } catch { await new Promise((resolve) => setTimeout(resolve, 10)); }
@@ -136,13 +169,14 @@ test("recovers a dead writer lock without stealing a live writer lock", async ()
     defaultBranch: "trunk",
     content: "must-not-win\n",
     lockTimeoutMs: 40,
+    git: sameWorktreeGit(directory),
   });
   await assert.rejects(liveAttempt, /Unable to acquire registry lock/);
   assert.equal(await readFile(registryPath, "utf8"), "original\n");
 
   child.kill("SIGKILL");
   await new Promise((resolve) => child.once("close", resolve));
-  const recovered = await updateRegistry({ registryPath, defaultBranch: "trunk", content: "recovered\n" });
+  const recovered = await updateRegistry({ registryPath, defaultBranch: "trunk", content: "recovered\n", git: sameWorktreeGit(directory) });
   assert.equal(recovered.status, "updated");
   assert.equal(await readFile(registryPath, "utf8"), "recovered\n");
 });
@@ -154,12 +188,12 @@ test("FR-7 recovers an old malformed interruption lock but not a fresh creator l
   await writeFile(registryPath, "original\n");
   await writeFile(lockPath, "");
 
-  await assert.rejects(updateRegistry({ registryPath, defaultBranch: "trunk", content: "unsafe\n", lockTimeoutMs: 30, staleLockMs: 1000 }), /Unable to acquire/);
+  await assert.rejects(updateRegistry({ registryPath, defaultBranch: "trunk", content: "unsafe\n", lockTimeoutMs: 30, staleLockMs: 1000, git: sameWorktreeGit(directory) }), /Unable to acquire/);
   assert.equal(await readFile(registryPath, "utf8"), "original\n");
 
   const old = new Date(Date.now() - 2000);
   await utimes(lockPath, old, old);
-  const result = await updateRegistry({ registryPath, defaultBranch: "trunk", content: "recovered\n", staleLockMs: 1000 });
+  const result = await updateRegistry({ registryPath, defaultBranch: "trunk", content: "recovered\n", staleLockMs: 1000, git: sameWorktreeGit(directory) });
   assert.equal(result.status, "updated");
   assert.equal(await readFile(registryPath, "utf8"), "recovered\n");
 });

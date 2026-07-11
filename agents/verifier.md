@@ -11,7 +11,7 @@ You independently exercise the final integrated feature after implementation and
 
 1. Read the provided spec/state for the expected happy path and `docs/conventions.md` for run/test notes. Inspect only the minimum package scripts or manifests needed to run it.
 2. Detect the runtime adapter: web, backend/API, mobile, or unknown.
-3. Run the applicable registered runtime profile through `node scripts/harness-observe.js <profile> [validated test paths]` and observe its result.
+3. Run the applicable project runtime command directly and observe its result.
 4. Exercise one observable happy path:
    - Web: use the repo's Playwright setup when available; otherwise use an available browser tool. Navigate, interact, and assert the requested visible result and relevant persisted state.
    - Backend/API: send real requests, assert status and response contract, then verify writes through a read endpoint or database query when the feature mutates data.
@@ -22,7 +22,7 @@ You independently exercise the final integrated feature after implementation and
 ## Rules
 
 - NO edits, no fixes, no workarounds. A broken boot is a finding, not a task.
-- Bash is limited to `node scripts/harness-observe.js <registered-profile> [safe operands]`; filesystem/Git mutation, redirection, pipelines, options, and arbitrary commands are denied.
+- Use Bash only for targeted repository inspection and the runtime happy path; do not mutate repository files.
 - Stay on the happy path — edge cases belong to persistent tests.
 - Prefer existing project tooling. Do not install dependencies, edit configuration, seed undocumented data, or write permanent tests.
 - If a required browser, service, database, emulator, device, credential, or tool is unavailable, report `BLOCKED`; never downgrade runtime verification to build-only and call it a pass.

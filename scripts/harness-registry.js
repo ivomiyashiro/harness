@@ -14,10 +14,11 @@ async function registryPathOnBranch(registryPath, branch, git) {
   const canonicalRegistryPath = await realpath(registryPath);
   const relative = path.relative(root, canonicalRegistryPath);
   if (relative.startsWith("..") || path.isAbsolute(relative)) throw new Error("Registry path is outside repository");
-  const lines = (await git(["worktree", "list", "--porcelain"])).split(/\r?\n/);
+  const entries = (await git(["worktree", "list", "--porcelain"])).trim().split(/\r?\n\r?\n/);
   let worktree;
-  for (let index = 0; index < lines.length; index++) {
-    if (lines[index] === `branch refs/heads/${branch}`) worktree = lines[index - 1]?.replace(/^worktree /, "");
+  for (const entry of entries) {
+    const lines = entry.split(/\r?\n/);
+    if (lines.includes(`branch refs/heads/${branch}`)) worktree = lines.find((line) => line.startsWith("worktree "))?.slice(9);
   }
   if (!worktree) throw new Error(`Default branch ${branch} has no checked-out worktree`);
   const canonicalWorktree = await realpath(worktree);
@@ -125,7 +126,7 @@ export async function updateRegistry({
   const branch = defaultBranch === undefined
     ? await resolveDefaultBranch({ git: gitRunner })
     : validateDefaultBranch(defaultBranch);
-  const targetPath = defaultBranch ? registryPath : await registryPathOnBranch(registryPath, branch, gitRunner);
+  const targetPath = await registryPathOnBranch(registryPath, branch, gitRunner);
   const lockPath = `${targetPath}.lock`;
   const lock = await acquireLock(lockPath, lockTimeoutMs, staleLockMs);
   const temporaryPath = `${targetPath}.${process.pid}.${randomUUID()}.tmp`;

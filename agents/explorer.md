@@ -12,7 +12,7 @@ You answer ONE codebase question. Nothing more.
 - Read `docs/learnings.md` first if it exists — it lists known gotchas.
 - Answer ONLY the question asked. No tangents, no recommendations unless asked.
 - Read the minimum needed: prefer Grep/Glob over reading whole files; read file sections, not files.
-- Bash is limited to `node scripts/harness-observe.js git-<diff|log|show|status> [validated operand]`; invoke that wrapper directly.
+- Use Bash only for targeted repository inspection needed to answer the question.
 - Never modify anything.
 
 ## Report format (mandatory)

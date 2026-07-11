@@ -303,7 +303,8 @@ export async function loadFeatureIdentity(state, repository) {
 }
 
 export async function loadPersistedFeatureIdentity(statePath, repository) {
-  return loadFeatureIdentity(loadState(await readFile(statePath, 'utf8')), repository)
+  const canonicalStatePath = await resolveInside(repository, statePath)
+  return loadFeatureIdentity(loadState(await readFile(canonicalStatePath, 'utf8')), repository)
 }
 
 export async function assertResumeIdentity(persisted, current, repository) {

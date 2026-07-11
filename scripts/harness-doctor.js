@@ -307,7 +307,6 @@ async function checkActiveRegistry() {
     let updated = false
     await updateRegistry({
       registryPath: path(registry),
-      defaultBranch: "doctor-fix",
       transform(current) {
         const currentLines = current.split(/\r?\n/).filter(Boolean)
         const next = `${currentLines.filter((line, index) => index === 0 || !removed.has(line.split("|")[0]?.trim())).join("\n")}\n`

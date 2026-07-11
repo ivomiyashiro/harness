@@ -61,11 +61,22 @@ test("doctor registry fix preserves a concurrent registry update", async () => {
   const registryPath = join(root, "docs/state/_active.md")
   writeFileSync(registryPath, "feature | mode | phase | branch | globs | next\nfinished | full | done | feature/finished | none | complete\n")
   writeFileSync(join(root, "docs/state/finished.md"), "feature: finished\nphase: done\n")
+  for (const args of [
+    ["init", "-b", "test"],
+    ["config", "user.email", "test@example.test"],
+    ["config", "user.name", "Test"],
+    ["add", "."],
+    ["commit", "-m", "fixture"],
+    ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/test"],
+  ]) assert.equal(spawnSync("git", args, { cwd: root }).status, 0)
 
   let doctorRun
   await updateRegistry({
     registryPath,
     defaultBranch: "test",
+    git: async (args) => args[0] === "rev-parse"
+      ? `${root}\n`
+      : `worktree ${root}\nbranch refs/heads/test\n`,
     transform: async (current) => {
       const child = spawn(process.execPath, [doctor.pathname, "--fix"], { cwd: root, stdio: "ignore" })
       doctorRun = new Promise((resolve) => child.once("close", resolve))

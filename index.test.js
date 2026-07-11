@@ -32,6 +32,14 @@ test("AC-10 agents can inspect freely while observe-only roles retain edit denia
   }
 })
 
+test("AC-10 observe-only agent instructions permit direct targeted inspection", async () => {
+  const { readFile } = await import("node:fs/promises")
+  for (const name of ["explorer", "judge-a", "judge-b", "verifier"]) {
+    const instructions = await readFile(new URL(`./agents/${name}.md`, import.meta.url), "utf8")
+    assert.doesNotMatch(instructions, /harness-observe\.js/)
+  }
+})
+
 test("command templates never interpolate raw arguments into shell text", async () => {
   const plugin = await HarnessPlugin({})
   const config = {}

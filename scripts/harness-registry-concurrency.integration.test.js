@@ -15,13 +15,16 @@ const worker = `
   await updateRegistry({
     registryPath,
     defaultBranch: "trunk",
+    git: async (args) => args[0] === "rev-parse"
+      ? path.dirname(registryPath) + "\\n"
+      : "worktree " + path.dirname(registryPath) + "\\nbranch refs/heads/trunk\\n",
     transform: (current) => JSON.stringify([...JSON.parse(current), feature]),
   });
 `;
 
 function runWriter(moduleUrl, registryPath, feature) {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ["--input-type=module", "--eval", worker, moduleUrl, registryPath, feature]);
+    const child = spawn(process.execPath, ["--input-type=module", "--eval", `import path from "node:path";\n${worker}`, moduleUrl, registryPath, feature]);
     let stderr = "";
     child.stderr.on("data", (chunk) => { stderr += chunk; });
     child.on("error", reject);

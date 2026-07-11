@@ -15,11 +15,15 @@ test("incompatible same-revision writers preserve the winner and reject the stal
   const expectedRevision = createHash("sha256").update(initial).digest("hex");
 
   const contents = ["writer-one\n", "writer-two\n"];
+  const git = async (args) => args[0] === "rev-parse"
+    ? `${directory}\n`
+    : `worktree ${directory}\nbranch refs/heads/trunk\n`;
   const results = await Promise.all(contents.map((content) => updateRegistry({
     registryPath,
     expectedRevision,
     content,
     defaultBranch: "trunk",
+    git,
   })));
 
   const winnerIndex = results.findIndex(({ status }) => status === "updated");

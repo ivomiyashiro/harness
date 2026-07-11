@@ -75,13 +75,33 @@ test("AC-4 resume workflow entrypoint rejects unsafe persisted identity before m
   assert.equal(await readFile(state, "utf8"), before);
 });
 
+test("AC-4 resume workflow rejects state outside the repository or through a symlink", async () => {
+  const repository = await mkdtemp(path.join(os.tmpdir(), "workflow-resume-boundary-"));
+  const outside = await mkdtemp(path.join(os.tmpdir(), "workflow-resume-state-"));
+  await git(repository, "init", "-b", "trunk");
+  const outsideState = path.join(outside, "identity.md");
+  await writeFile(outsideState, `worktree: ${await realpath(repository)}\nbranch: trunk\n`);
+  await symlink(outsideState, path.join(repository, "identity-link.md"));
+
+  for (const state of [outsideState, path.join(repository, "identity-link.md")]) {
+    await assert.rejects(
+      exec(process.execPath, [workflow, "resume-identity", "--state", state, "--repository", repository], { cwd: repository }),
+      /outside allowed boundary/,
+    );
+  }
+});
+
 test("FR-5 registry workflow entrypoint performs CAS and rejects stale rewrite", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "workflow-registry-"));
   await git(directory, "init", "-b", "trunk");
+  await git(directory, "config", "user.email", "test@example.test");
+  await git(directory, "config", "user.name", "Test");
   const registry = path.join(directory, "_active.md");
   const candidate = path.join(directory, "candidate.md");
   await writeFile(registry, "winner\n");
   await writeFile(candidate, "loser\n");
+  await git(directory, "add", "_active.md", "candidate.md");
+  await git(directory, "commit", "-m", "fixture");
 
   const { stdout } = await exec(process.execPath, [workflow, "update-registry", "--registry", registry, "--content-file", candidate, "--expected-revision", "stale", "--default-branch", "trunk"], { cwd: directory });
   assert.equal(JSON.parse(stdout).status, "stale-revision");
