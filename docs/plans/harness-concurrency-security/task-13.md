@@ -2,4 +2,6 @@ goal: integration-test eight concurrent distinct registry writers retain every p
 files: scripts/harness-registry-concurrency.integration.test.js
 tests: AC-7 (integration)
 done-when: node --test scripts/harness-registry-concurrency.integration.test.js green; AC-7 covers at least eight concurrent writers
-pattern: scripts/harness-doctor.test.js
+pattern: scripts/harness-registry.test.js
+read-files: scripts/harness-registry.js, scripts/harness-registry.test.js
+status: done
