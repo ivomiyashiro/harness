@@ -5,7 +5,7 @@ import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { spawn, spawnSync } from "node:child_process"
-import { runParallelTasks } from "./harness-worktrees.js"
+import { executeParallelTasks, runParallelTasks } from "./harness-worktrees.js"
 
 function git(cwd, ...args) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8" })
@@ -31,30 +31,25 @@ function commitTask(cwd, filename) {
 
 async function concurrentWorktreeFixture() {
   const root = mkdtempSync(join(tmpdir(), "harness-worktrees-"))
-  const taskOne = `${root}-task-one`
-  const taskTwo = `${root}-task-two`
   git(root, "init", "-b", "feature/concurrency")
   git(root, "config", "user.name", "Harness Test")
   git(root, "config", "user.email", "harness@example.test")
   writeFileSync(join(root, ".gitignore"), "ignored\n")
   git(root, "add", ".gitignore")
   git(root, "commit", "-m", "test: initialize fixture")
-  git(root, "worktree", "add", "-b", "task/one", taskOne)
-  git(root, "worktree", "add", "-b", "task/two", taskTwo)
-
-  assert.notEqual(git(taskOne, "rev-parse", "--git-path", "index"), git(taskTwo, "rev-parse", "--git-path", "index"))
-  await Promise.all([
-    commitTask(taskOne, "task-one.txt"),
-    commitTask(taskTwo, "task-two.txt"),
-  ])
-
-  const taskOneFiles = git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", "task/one").split("\n")
-  const taskTwoFiles = git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", "task/two").split("\n")
-  git(root, "cherry-pick", "task/one")
-  git(root, "cherry-pick", "task/two")
+  const statePath = join(root, "integration.json")
+  const result = await executeParallelTasks({
+    repo: root,
+    tasks: ["one", "two"],
+    statePath,
+    runTask: async (task, worktree) => commitTask(worktree, `task-${task}.txt`),
+  })
+  assert.notEqual(git(result.worktrees[0], "rev-parse", "--git-path", "index"), git(result.worktrees[1], "rev-parse", "--git-path", "index"))
+  const taskOneFiles = git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", result.commits[0]).split("\n")
+  const taskTwoFiles = git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", result.commits[1]).split("\n")
   const integratedFiles = git(root, "diff", "--name-only", "HEAD~2", "HEAD").split("\n").sort()
 
-  return { taskOneFiles, taskTwoFiles, integratedFiles }
+  return { taskOneFiles, taskTwoFiles, integratedFiles, result }
 }
 
 test("AC-5 concurrent tasks use isolated indexes and integrate uncontaminated commits serially", async () => {
@@ -63,6 +58,7 @@ test("AC-5 concurrent tasks use isolated indexes and integrate uncontaminated co
   assert.deepEqual(result.taskOneFiles, ["task-one.txt"])
   assert.deepEqual(result.taskTwoFiles, ["task-two.txt"])
   assert.deepEqual(result.integratedFiles, ["task-one.txt", "task-two.txt"])
+  assert.deepEqual(result.result.integration.integrated, result.result.commits)
 })
 
 test("AC-5 creates task worktrees from a linked feature worktree", async () => {

@@ -29,9 +29,12 @@ test("restricts observe-only agents to explicit Bash allowlists", async () => {
     for (const escape of ["*;*", "*&&*", "*$(*", "*`*"]) {
       assert.equal(config.agent[name].permission.bash[escape], "deny")
     }
+    for (const escape of ["*>*", "*<*", "*|*", "* > *", "* < *", "* | *"]) {
+      assert.equal(config.agent[name].permission.bash[escape], "deny")
+    }
   }
 
-  assert.equal(Object.keys(config.agent.explorer.permission.bash).some((command) => command.endsWith("harness-observe.js git *")), true)
+  assert.equal(Object.keys(config.agent.explorer.permission.bash).some((command) => command.endsWith("harness-observe.js git-diff")), true)
   assert.equal(config.agent["judge-a"].permission.bash["git diff *"], undefined)
   for (const command of ["npm run *", "pnpm run *", "yarn run *", "bun run *", "rtk npm run *"]) {
     assert.equal(config.agent.verifier.permission.bash[command], undefined)
@@ -42,7 +45,7 @@ test("restricts observe-only agents to explicit Bash allowlists", async () => {
   assert.equal(config.agent.verifier.permission.bash["rtk node *"], undefined)
 })
 
-test("AC-10 observation wrapper rejects Git/curl output and config escapes", () => {
+test("AC-10 observation wrapper fixes operations and rejects arguments and shell escapes", () => {
   for (const args of [
     ["git", ["diff", "--output=/tmp/stolen"]],
     ["git", ["log", "--config-env=x=y"]],
@@ -52,8 +55,11 @@ test("AC-10 observation wrapper rejects Git/curl output and config escapes", () 
     ["node-test", ["--test-reporter-destination=/tmp/stolen"]],
   ]) assert.throws(() => observeCommand(args[0], args[1]), /unsafe/)
 
-  assert.deepEqual(observeCommand("git", ["diff", "HEAD~1", "HEAD"]), ["git", ["diff", "HEAD~1", "HEAD"]])
-  assert.deepEqual(observeCommand("curl-get", ["https://example.test/health"]), ["curl", ["--fail", "--silent", "--show-error", "https://example.test/health"]])
+  for (const value of ["test/fixture.test.js", "../outside.test.js", "|touch", "| touch", ">out", "> out"]) {
+    assert.throws(() => observeCommand("node-test", [value]), /unsafe/)
+  }
+  assert.deepEqual(observeCommand("git-diff", []), ["git", ["diff", "--", "."]])
+  assert.deepEqual(observeCommand("node-test", []), ["node", ["--test"]])
 })
 
 test("command templates never interpolate raw arguments into shell text", async () => {
