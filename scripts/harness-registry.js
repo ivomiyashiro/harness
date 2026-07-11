@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { open, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { open, readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { runHarnessProcess } from "./harness-process.js";
 
@@ -10,8 +10,9 @@ async function runGit(args) {
 }
 
 async function registryPathOnBranch(registryPath, branch, git) {
-  const root = (await git(["rev-parse", "--show-toplevel"])).trim();
-  const relative = path.relative(root, registryPath);
+  const root = await realpath((await git(["rev-parse", "--show-toplevel"])).trim());
+  const canonicalRegistryPath = await realpath(registryPath);
+  const relative = path.relative(root, canonicalRegistryPath);
   if (relative.startsWith("..") || path.isAbsolute(relative)) throw new Error("Registry path is outside repository");
   const lines = (await git(["worktree", "list", "--porcelain"])).split(/\r?\n/);
   let worktree;
@@ -19,7 +20,20 @@ async function registryPathOnBranch(registryPath, branch, git) {
     if (lines[index] === `branch refs/heads/${branch}`) worktree = lines[index - 1]?.replace(/^worktree /, "");
   }
   if (!worktree) throw new Error(`Default branch ${branch} has no checked-out worktree`);
-  return path.join(worktree, relative);
+  const canonicalWorktree = await realpath(worktree);
+  return path.join(canonicalWorktree, relative);
+}
+
+export function validateDefaultBranch(branch) {
+  if (typeof branch !== "string"
+    || branch.startsWith("-")
+    || branch.includes("..")
+    || !/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(branch)
+    || branch.endsWith("/")
+    || branch.endsWith(".")) {
+    throw new TypeError("Invalid default branch");
+  }
+  return branch;
 }
 
 export async function resolveDefaultBranch({ git = runGit } = {}) {
@@ -28,7 +42,7 @@ export async function resolveDefaultBranch({ git = runGit } = {}) {
       "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD",
     ])).trim();
     const match = /^(?:refs\/remotes\/)?origin\/([^/]+)$/.exec(ref);
-    if (match) return match[1];
+    if (match) return validateDefaultBranch(match[1]);
   } catch {
     // The actionable error below is stable across Git versions.
   }
@@ -104,7 +118,9 @@ export async function updateRegistry({
   staleLockMs = 30000,
 }) {
   const gitRunner = git ?? runGit;
-  const branch = defaultBranch ?? await resolveDefaultBranch({ git: gitRunner });
+  const branch = defaultBranch === undefined
+    ? await resolveDefaultBranch({ git: gitRunner })
+    : validateDefaultBranch(defaultBranch);
   const targetPath = defaultBranch ? registryPath : await registryPathOnBranch(registryPath, branch, gitRunner);
   const lockPath = `${targetPath}.lock`;
   const lock = await acquireLock(lockPath, lockTimeoutMs, staleLockMs);

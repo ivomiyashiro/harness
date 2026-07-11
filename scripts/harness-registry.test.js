@@ -53,6 +53,17 @@ test("ambiguous default branch fails before registry writes", async () => {
   assert.equal(await readFile(registryPath, "utf8"), "original\n");
 });
 
+test("rejects an unsafe supplied default branch before registry reads or locks", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "registry-branch-"));
+  const registryPath = path.join(directory, "missing", "_active.md");
+
+  await assert.rejects(
+    updateRegistry({ registryPath, content: "changed\n", defaultBranch: "--upload-pack=evil" }),
+    /Invalid default branch/,
+  );
+  await assert.rejects(readFile(`${registryPath}.lock`), { code: "ENOENT" });
+});
+
 test("compare-and-swap rejects a stale revision without overwriting", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "registry-"));
   const registryPath = path.join(directory, "_active.md");

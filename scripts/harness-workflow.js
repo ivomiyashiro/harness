@@ -2,7 +2,7 @@
 import { readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { assertResumeIdentity } from "./harness-state.js";
-import { updateRegistry } from "./harness-registry.js";
+import { updateRegistry, validateDefaultBranch } from "./harness-registry.js";
 import { runHarnessProcess } from "./harness-process.js";
 
 function options(values) {
@@ -12,6 +12,12 @@ function options(values) {
     result[values[index].slice(2)] = values[index + 1];
   }
   return result;
+}
+
+function assertInside(root, candidate, label) {
+  const relative = path.relative(root, candidate);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) throw new Error(`${label} is outside repository`);
+  return candidate;
 }
 
 export async function runWorkflow(argv, cwd = process.cwd()) {
@@ -29,9 +35,13 @@ export async function runWorkflow(argv, cwd = process.cwd()) {
   }
   if (command === "update-registry") {
     if (!args.registry || !args["content-file"]) throw new Error("usage: update-registry --registry <path> --content-file <path> [--expected-revision <sha>] [--default-branch <name>]");
+    const repository = await realpath((await runHarnessProcess("git", ["rev-parse", "--show-toplevel"], { cwd })).stdout.trim());
+    const registryPath = assertInside(repository, await realpath(path.resolve(cwd, args.registry)), "Registry path");
+    if (args["default-branch"] !== undefined) validateDefaultBranch(args["default-branch"]);
+    const contentPath = assertInside(repository, await realpath(path.resolve(cwd, args["content-file"])), "Content path");
     return updateRegistry({
-      registryPath: path.resolve(cwd, args.registry),
-      content: await readFile(args["content-file"], "utf8"),
+      registryPath,
+      content: await readFile(contentPath, "utf8"),
       expectedRevision: args["expected-revision"],
       defaultBranch: args["default-branch"],
     });
