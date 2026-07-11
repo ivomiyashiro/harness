@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { spawnSync } from "node:child_process"
+import { checkTransition } from "./harness-state.js"
 
 const root = process.cwd()
 const fix = process.argv.includes("--fix")
@@ -36,6 +37,98 @@ function parseState(input) {
     state[line.slice(0, separator).trim()] = line.slice(separator + 1).trim()
   }
   return state
+}
+
+function parseCheckpoints(value = "") {
+  const checkpoints = {}
+  const pattern = /\b(spec|plan|visual|implement|judge|verify|commit|registry|cleanup)\s+(pending|done|approved|not-required)\b/g
+  for (const match of value.matchAll(pattern)) checkpoints[match[1]] = match[2]
+  return checkpoints
+}
+
+function parseApprovals(feature, value = "", revision = 0) {
+  if (!value || value === "none") return {}
+
+  const approvals = {}
+  const pattern = /\b(spec|plan|visual)\s+rev\s+(\d+)\s+by\s+\S+\s+at\s+(\S+)\s+evidence\s+([^,]+)/g
+  for (const match of value.matchAll(pattern)) {
+    const [, gate, rev, timestamp] = match
+    if (Number.isNaN(Date.parse(timestamp))) add("error", `${feature}: invalid approval evidence for ${gate}`)
+    approvals[gate] = { gate, revision: Number(rev), approved: Number(rev) === revision }
+  }
+
+  if (!Object.keys(approvals).length) add("error", `${feature}: invalid approval evidence`)
+  return approvals
+}
+
+function hasTaskFile(feature) {
+  const dir = path("docs/plans", feature)
+  if (!existsSync(dir)) return false
+  return readdirSync(dir).some((file) => /^task-\d+\.md$/.test(file))
+}
+
+function doctorState(feature, state) {
+  const legalPhases = new Set(["brainstorm", "spec", "plan", "visual", "implement", "judge", "verify", "iterate", "done"])
+  const required = ["feature", "mode", "phase", "branch", "worktree", "plan", "tasks", "globs", "judges", "checklist", "checkpoints", "revision", "next"]
+  const versioned = state.state_version !== undefined
+  const revision = Number(state.revision ?? 0)
+  const checkpoints = parseCheckpoints(state.checkpoints)
+
+  if (!legalPhases.has(state.phase)) add("error", `${feature}: invalid phase: ${state.phase ?? "missing"}`)
+
+  if (versioned) {
+    for (const field of required) {
+      if (state[field] === undefined || state[field] === "") add("error", `${feature}: missing required field: ${field}`)
+    }
+  }
+
+  const planPath = state.plan || `docs/plans/${feature}/plan.md`
+  const planExists = existsSync(path(planPath))
+  if (state.plan || ["plan", "visual", "implement", "judge", "verify", "done"].includes(state.phase)) {
+    if (!planExists) add("error", `${feature}: missing artifact: ${planPath}`)
+  }
+
+  if (state.tasks || ["plan", "visual", "implement", "judge", "verify", "done"].includes(state.phase)) {
+    if (!hasTaskFile(feature)) add("error", `${feature}: missing artifact: docs/plans/${feature}/task-NN.md`)
+  }
+
+  const approvals = parseApprovals(feature, state.approvals, revision)
+  const canonical = {
+    mode: state.mode,
+    phase: state.phase,
+    revision,
+    plan: { exists: planExists, hasUi: checkpoints.visual === "pending" },
+    approvals,
+    verification: { passed: checkpoints.verify === "done" },
+    finalization: {
+      commit: checkpoints.commit === "done",
+      registry: checkpoints.registry === "done",
+      cleanup: checkpoints.cleanup === "done",
+    },
+  }
+
+  if (state.phase === "plan" && legalPhases.has(state.phase)) {
+    const requested = ["hotfix", "lite"].includes(state.mode) ? "start-implement" : "complete-plan"
+    const result = checkTransition(canonical, requested)
+    if (!result.ok) add("error", `${feature}: ${result.rule}`)
+  }
+
+  if (state.phase === "done") {
+    for (const checkpoint of ["verify", "commit", "registry", "cleanup"]) {
+      if (checkpoints[checkpoint] !== "done") add("error", `${feature}: ${checkpoint} checkpoint incomplete`)
+    }
+  }
+}
+
+function checkWorkflowStates() {
+  const dir = path("docs/state")
+  if (!existsSync(dir)) return
+
+  for (const file of readdirSync(dir)) {
+    if (!file.endsWith(".md") || file === "_active.md") continue
+    const feature = file.slice(0, -3)
+    doctorState(feature, parseState(read(`docs/state/${file}`)))
+  }
 }
 
 function checkRequiredPaths() {
@@ -177,6 +270,7 @@ function checkPromptDrift() {
 checkRequiredPaths()
 checkModels()
 checkActiveRegistry()
+checkWorkflowStates()
 checkRtk()
 checkPromptDrift()
 
