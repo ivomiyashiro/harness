@@ -221,3 +221,21 @@ test("AC-7 iteration skill invalidates only affected downstream state", () => {
   assert.match(docs, /tasks, judge results, verification results, and manual checklist/i)
   assert.match(docs, /preserve unaffected upstream approvals/i)
 })
+
+test("AC-8 judge synthesis preserves blocking findings with evidence", () => {
+  const docs = skill("judge")
+
+  assert.match(docs, /every blocking finding/i)
+  assert.match(docs, /explicitly confirm or reject/i)
+  assert.match(docs, /with evidence/i)
+  assert.match(docs, /store.*evidence.*judge state.*checkpoint/is)
+  assert.doesNotMatch(docs, /Finding reported by ONE only \| → AUTO-DISMISS/i)
+})
+
+test("AC-9 judge re-runs both reviewers on cumulative fixer diff", () => {
+  const docs = skill("judge")
+
+  assert.match(docs, /re-judge.*both judges/i)
+  assert.match(docs, /cumulative diff/i)
+  assert.match(docs, /approved baseline.*fixer commit/is)
+})
