@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { spawnSync } from "node:child_process"
 import { checkTransition } from "./harness-state.js"
+import { updateRegistry } from "./harness-registry.js"
 
 const root = process.cwd()
 const harnessIndex = resolve(dirname(fileURLToPath(import.meta.url)), "..", "index.js")
@@ -271,7 +272,7 @@ function checkModels() {
   }
 }
 
-function checkActiveRegistry() {
+async function checkActiveRegistry() {
   const registry = "docs/state/_active.md"
   if (!existsSync(path(registry))) return
 
@@ -301,7 +302,21 @@ function checkActiveRegistry() {
     kept.push(line)
   }
 
-  if (fix && changed) write(registry, `${kept.join("\n")}\n`)
+  if (fix && changed) {
+    const removed = new Set(lines.slice(1).filter((line) => !kept.includes(line)).map((line) => line.split("|")[0]?.trim()))
+    let updated = false
+    await updateRegistry({
+      registryPath: path(registry),
+      defaultBranch: "doctor-fix",
+      transform(current) {
+        const currentLines = current.split(/\r?\n/).filter(Boolean)
+        const next = `${currentLines.filter((line, index) => index === 0 || !removed.has(line.split("|")[0]?.trim())).join("\n")}\n`
+        updated = next !== current
+        return next
+      },
+    })
+    if (updated) fixes.push(registry)
+  }
 }
 
 function checkRtk() {
@@ -327,7 +342,7 @@ function checkPromptDrift() {
 
 checkRequiredPaths()
 checkModels()
-checkActiveRegistry()
+await checkActiveRegistry()
 checkWorkflowStates()
 checkRtk()
 checkPromptDrift()

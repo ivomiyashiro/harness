@@ -4,7 +4,8 @@ import assert from "node:assert/strict"
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { spawnSync } from "node:child_process"
+import { spawn, spawnSync } from "node:child_process"
+import { updateRegistry } from "./harness-registry.js"
 
 const doctor = new URL("./harness-doctor.js", import.meta.url)
 
@@ -53,4 +54,27 @@ next: complete
   assert.equal(JSON.parse(configAfter).plugin[1][1].defaultModel, "openai/gpt-5.6-terra")
   assert.equal(stateAfter, stateBefore)
   assert.deepEqual(repairs, ["FIX opencode.json"])
+})
+
+test("doctor registry fix preserves a concurrent registry update", async () => {
+  const root = fixture()
+  const registryPath = join(root, "docs/state/_active.md")
+  writeFileSync(registryPath, "feature | mode | phase | branch | globs | next\nfinished | full | done | feature/finished | none | complete\n")
+  writeFileSync(join(root, "docs/state/finished.md"), "feature: finished\nphase: done\n")
+
+  let doctorRun
+  await updateRegistry({
+    registryPath,
+    defaultBranch: "test",
+    transform: async (current) => {
+      const child = spawn(process.execPath, [doctor.pathname, "--fix"], { cwd: root, stdio: "ignore" })
+      doctorRun = new Promise((resolve) => child.once("close", resolve))
+      await new Promise((resolve) => setTimeout(resolve, 80))
+      return `${current}concurrent | full | plan | feature/concurrent | none | implement\n`
+    },
+  })
+  assert.equal(await doctorRun, 1)
+  const registry = readFileSync(registryPath, "utf8")
+  assert.doesNotMatch(registry, /^finished \|/m)
+  assert.match(registry, /^concurrent \|/m)
 })

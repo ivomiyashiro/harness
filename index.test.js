@@ -39,5 +39,7 @@ test("command templates never interpolate raw arguments into shell text", async 
 
   for (const name of ["harness:go", "harness:epic", "harness:status"]) {
     assert.doesNotMatch(config.command[name].template, /\$ARGUMENTS/)
+    assert.match(config.command[name].template, /node "[^"]+\/scripts\/harness-input\.js"/)
+    assert.doesNotMatch(config.command[name].template, /__HARNESS_ROOT__|node scripts\/harness-input\.js/)
   }
 })

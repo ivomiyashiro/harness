@@ -19,6 +19,17 @@ test("resolves and uses a non-main remote default branch", async () => {
   assert.deepEqual(calls, [["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"]]);
 });
 
+test("resolves an unambiguous default branch containing slashes", async () => {
+  const git = async () => "refs/remotes/origin/release/2026/stable\n";
+  assert.equal(await resolveDefaultBranch({ git }), "release/2026/stable");
+});
+
+test("rejects injected or ambiguous remote default branch refs", async () => {
+  for (const ref of ["origin/release//stable", "origin/main@{1}", "origin/.hidden/main", "origin/main.lock"]) {
+    await assert.rejects(resolveDefaultBranch({ git: async () => ref }), /Unable to determine repository default branch/);
+  }
+});
+
 test("FR-6 resolved non-main branch selects the registry worktree actually written", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "registry-branch-"));
   const feature = path.join(directory, "feature");

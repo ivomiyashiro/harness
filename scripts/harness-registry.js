@@ -28,9 +28,13 @@ export function validateDefaultBranch(branch) {
   if (typeof branch !== "string"
     || branch.startsWith("-")
     || branch.includes("..")
+    || branch.includes("//")
+    || branch.includes("@{")
     || !/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(branch)
     || branch.endsWith("/")
-    || branch.endsWith(".")) {
+    || branch.endsWith(".")
+    || branch.endsWith(".lock")
+    || branch.split("/").some((segment) => segment.startsWith("."))) {
     throw new TypeError("Invalid default branch");
   }
   return branch;
@@ -41,7 +45,7 @@ export async function resolveDefaultBranch({ git = runGit } = {}) {
     const ref = (await git([
       "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD",
     ])).trim();
-    const match = /^(?:refs\/remotes\/)?origin\/([^/]+)$/.exec(ref);
+    const match = /^(?:refs\/remotes\/)?origin\/(.+)$/.exec(ref);
     if (match) return validateDefaultBranch(match[1]);
   } catch {
     // The actionable error below is stable across Git versions.
