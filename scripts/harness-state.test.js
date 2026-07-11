@@ -136,7 +136,7 @@ test("AC-7 downstream invalidation", () => {
   const result = transition(state, "route-to-implement")
 
   assert.equal(result.state.phase, "implement")
-  assert.deepEqual(result.state.approvals, state.approvals)
+  assert.equal(result.state.approvals.spec.revision, 2)
   assert.deepEqual(result.state.tasks, state.tasks)
   assert.equal(result.state.revision, 2)
   assert.deepEqual(result.state.judge, { passed: false, findings: [] })
@@ -184,7 +184,7 @@ test("FSM-1 canonical mode transitions stay within legal phases", () => {
 test("FSM-2 route-to-implement preserves tasks and invalidates only downstream state", () => {
   const state = canonicalState({
     mode: "full",
-    phase: "verify",
+    phase: "iterate",
     revision: 8,
     approvals: { plan: { gate: "plan", revision: 8, approved: true } },
     tasks: { done: ["task-01"], pending: ["task-02"] },
@@ -194,11 +194,54 @@ test("FSM-2 route-to-implement preserves tasks and invalidates only downstream s
 
   const result = transition(state, "route-to-implement").state
   assert.deepEqual(result.tasks, state.tasks)
-  assert.deepEqual(result.approvals, state.approvals)
+  assert.equal(result.approvals.plan.revision, 9)
   assert.equal(result.checkpoints.implement, "done")
   assert.equal(result.checkpoints.judge, "pending")
   assert.equal(result.checkpoints.commit, "pending")
   assert.equal(result.revision, 9)
+})
+
+test("route-to-implement rejects undeclared mode routes and validates idempotent resumes", () => {
+  for (const mode of ["hotfix", "lite", "full", "epic"]) {
+    const undeclared = checkTransition(canonicalState({ mode, phase: "verify" }), "route-to-implement")
+    assert.equal(undeclared.ok, false)
+    assert.match(undeclared.rule, /not declared/)
+
+    const first = transition(canonicalState({ mode, phase: "iterate" }), "route-to-implement")
+    const resumed = transition(first.state, "route-to-implement")
+    assert.equal(first.ok, true)
+    assert.deepEqual(resumed.state, first.state)
+  }
+
+  const unknownModeResume = canonicalState({ mode: "unknown", phase: "implement", checkpoints: { routeToImplement: "done" } })
+  assert.equal(checkTransition(unknownModeResume, "route-to-implement").ok, false)
+})
+
+test("AC-7 selectively resets affected tasks and rebases only preserved approvals", () => {
+  const state = canonicalState({
+    mode: "full",
+    phase: "iterate",
+    revision: 4,
+    tasks: { done: ["task-01", "task-02"], pending: ["task-03"] },
+    approvals: {
+      spec: { gate: "spec", revision: 4, approved: true },
+      plan: { gate: "plan", revision: 4, approved: true },
+      visual: { gate: "visual", revision: 4, approved: true },
+    },
+    gates: { visual: { revision: 4, required: true } },
+  })
+
+  const result = transition(state, "route-to-implement", {
+    affectedTasks: ["task-02"],
+    invalidatedGates: ["visual"],
+  }).state
+
+  assert.deepEqual(result.tasks, { done: ["task-01"], pending: ["task-03", "task-02"] })
+  assert.equal(result.approvals.spec.revision, 5)
+  assert.equal(result.approvals.plan.revision, 5)
+  assert.equal(result.approvals.visual, undefined)
+  assert.equal(result.gates.visual, undefined)
+  assert.equal(checkTransition({ ...result, phase: "plan", plan: { exists: true, hasUi: false } }, "start-implement").ok, true)
 })
 
 test("AC-11 unversioned load safe defaults and no inferred approval", () => {

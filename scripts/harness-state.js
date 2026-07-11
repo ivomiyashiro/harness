@@ -86,8 +86,8 @@ function reject(rule) {
 }
 
 const modeTransitions = {
-  hotfix: { plan: ["implement"], implement: ["judge"], judge: ["verify"], verify: ["done"] },
-  lite: { plan: ["implement"], implement: ["judge"], judge: ["verify"], verify: ["done"] },
+  hotfix: { plan: ["implement"], implement: ["judge"], judge: ["verify"], verify: ["done"], iterate: ["implement"] },
+  lite: { plan: ["implement"], implement: ["judge"], judge: ["verify"], verify: ["done"], iterate: ["implement"] },
   full: {
     brainstorm: ["spec"],
     spec: ["plan"],
@@ -96,8 +96,9 @@ const modeTransitions = {
     implement: ["judge"],
     judge: ["verify"],
     verify: ["iterate", "done"],
+    iterate: ["spec", "plan", "visual", "implement"],
   },
-  epic: { plan: ["implement"], implement: ["judge"], judge: ["verify"], verify: ["done"] },
+  epic: { plan: ["implement"], implement: ["judge"], judge: ["verify"], verify: ["done"], iterate: ["implement"] },
 }
 
 function checkpointDone(state, name) {
@@ -156,7 +157,12 @@ export function checkTransition(input, requested) {
   }
 
   if (requested === "route-to-implement") {
-    if (!["iterate", "judge", "verify"].includes(state.phase)) return reject("current phase must be downstream of implement")
+    if (state.phase === "implement" && checkpointDone(state, "routeToImplement")) {
+      const rule = modeTransitions[state.mode]?.iterate?.includes("implement") ? undefined : `${state.mode} transition from iterate to implement is not declared`
+      return rule ? reject(rule) : ok("implement")
+    }
+    const rule = requireDeclaredTransition(state, "implement")
+    if (rule) return reject(rule)
     return ok("implement")
   }
 
@@ -174,10 +180,22 @@ export function checkTransition(input, requested) {
   return reject(`unknown transition: ${requested}`)
 }
 
-function invalidated(state) {
+function invalidated(state, { affectedTasks = [], invalidatedGates = [] } = {}) {
+  const affected = new Set(affectedTasks)
+  const invalidGates = new Set(invalidatedGates)
+  const revision = state.revision + 1
+  const approvals = Object.fromEntries(Object.entries(state.approvals).flatMap(([gate, evidence]) =>
+    invalidGates.has(gate) ? [] : [[gate, { ...evidence, revision }]],
+  ))
+  const done = state.tasks.done.filter((task) => !affected.has(task))
+  const pending = [...state.tasks.pending]
+  for (const task of state.tasks.done) if (affected.has(task) && !pending.includes(task)) pending.push(task)
   return {
     ...state,
-    revision: state.revision + 1,
+    revision,
+    approvals,
+    gates: Object.fromEntries(Object.entries(state.gates).filter(([gate]) => !invalidGates.has(gate))),
+    tasks: { ...state.tasks, done, pending },
     judge: { passed: false, findings: [] },
     verification: { passed: false },
     manualChecklist: { items: [] },
@@ -193,12 +211,16 @@ function invalidated(state) {
   }
 }
 
-export function transition(input, requested) {
+export function transition(input, requested, options) {
   const state = canonicalState(input)
   const checked = checkTransition(state, requested)
   if (!checked.ok) return { ok: false, rule: checked.rule, state }
 
-  if (requested === "route-to-implement") return { ok: true, state: { ...invalidated(state), phase: "implement" } }
+  if (requested === "route-to-implement") {
+    if (state.phase === "implement") return { ok: true, state }
+    const next = invalidated(state, options)
+    return { ok: true, state: { ...next, phase: "implement", checkpoints: { ...next.checkpoints, routeToImplement: "done" } } }
+  }
   if (requested === "finalize") return { ok: true, state: { ...state, phase: "done" } }
   if (requested === "complete-plan") {
     const next = checked.phase
